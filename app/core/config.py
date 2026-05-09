@@ -32,5 +32,8 @@ class Settings:
     APP_NAME: str = "Myeonri API"
     APP_VERSION: str = "2.0.0"
 
+    # API Key Authentication
+    API_KEY: str = os.getenv("API_KEY", "")
+
 
 settings = Settings()

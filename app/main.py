@@ -3,9 +3,10 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import saju, user, consult
+from app.api import saju, user, consult, calendar
 from app.core.config import settings
 from app.core.database import close_pool
+from app.core.auth import APIKeyMiddleware
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -22,10 +23,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API Key Authentication
+app.add_middleware(APIKeyMiddleware)
+
 # Routers
 app.include_router(saju.router)
 app.include_router(user.router)
 app.include_router(consult.router)
+app.include_router(calendar.router)
 
 
 @app.on_event("shutdown")
