@@ -113,7 +113,7 @@ async def consult_analyze(req: ConsultRequest):
                     {"role": "user", "content": user_prompt},
                 ],
                 "temperature": 0.7,
-                "max_tokens": 1000,
+                "max_tokens": 2048,
             },
         )
 
@@ -153,7 +153,7 @@ async def _stream_groq(saju: dict, req: ConsultRequest) -> AsyncGenerator[str, N
                         {"role": "user", "content": user_prompt},
                     ],
                     "temperature": 0.7,
-                    "max_tokens": 1000,
+                    "max_tokens": 2048,
                     "stream": True,
                 },
             ) as resp:
