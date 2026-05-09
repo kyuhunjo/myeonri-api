@@ -137,7 +137,7 @@ async def _stream_groq(saju: dict, req: ConsultRequest) -> AsyncGenerator[str, N
 
     import httpx
 
-    async with httpx.AsyncClient(timeout=120) as client:
+    async with httpx.AsyncClient(timeout=300) as client:
         async with client.stream(
             "POST",
             "https://api.groq.com/openai/v1/chat/completions",
