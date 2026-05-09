@@ -63,12 +63,14 @@ async def save_user(req: UserSaveRequest):
 
             if existing:
                 # UPDATE
+                import json
                 await cur.execute(
                     """UPDATE users SET
                         email = %s, name = %s,
                         birth_year = %s, birth_month = %s, birth_day = %s,
                         birth_hour = %s, birth_minute = %s,
                         gender = %s, calendar = %s,
+                        saju_data = %s,
                         updated_at = NOW()
                     WHERE google_id = %s""",
                     (
@@ -76,6 +78,7 @@ async def save_user(req: UserSaveRequest):
                         req.birth_year, req.birth_month, req.birth_day,
                         req.birth_hour, req.birth_minute,
                         req.gender, req.calendar,
+                        json.dumps(req.saju_data, ensure_ascii=False) if req.saju_data else None,
                         req.google_id,
                     ),
                 )
@@ -85,13 +88,14 @@ async def save_user(req: UserSaveRequest):
                 await cur.execute(
                     """INSERT INTO users
                         (google_id, email, name, birth_year, birth_month, birth_day,
-                         birth_hour, birth_minute, gender, calendar)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                         birth_hour, birth_minute, gender, calendar, saju_data)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                     (
                         req.google_id, req.email, req.name,
                         req.birth_year, req.birth_month, req.birth_day,
                         req.birth_hour, req.birth_minute,
                         req.gender, req.calendar,
+                        json.dumps(req.saju_data, ensure_ascii=False) if req.saju_data else None,
                     ),
                 )
                 return {"success": True, "action": "created"}

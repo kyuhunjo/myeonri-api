@@ -40,6 +40,7 @@ class UserSaveRequest(BaseModel):
     birth_minute: int | None = None
     gender: str = "남"
     calendar: str = "solar"
+    saju_data: dict | None = None
 
 
 class UserResponse(BaseModel):
