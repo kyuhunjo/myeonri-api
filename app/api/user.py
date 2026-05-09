@@ -30,6 +30,7 @@ async def check_user(req: UserCheckRequest):
         "birth_year", "birth_month", "birth_day",
         "birth_hour", "birth_minute",
         "gender", "calendar", "saju_data",
+        "role",
         "created_at", "updated_at",
     ]
     user = dict(zip(columns, row))
