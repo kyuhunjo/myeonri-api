@@ -1,4 +1,6 @@
 from __future__ import annotations
+import logging
+logger = logging.getLogger("myeonri-api")
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel

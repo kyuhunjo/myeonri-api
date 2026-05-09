@@ -1,4 +1,6 @@
 from __future__ import annotations
+import logging
+logger = logging.getLogger("myeonri-api")
 
 from fastapi import APIRouter, HTTPException
 from app.api.schemas import SajuRequest, SajuResponse
@@ -11,6 +13,7 @@ router = APIRouter(prefix="/saju", tags=["사주"])
 @router.post("/calculate", response_model=SajuResponse)
 async def calculate_saju(req: SajuRequest):
     """사주 계산 API — 만세력 DB 조회 + 시주/십신 계산"""
+    logger.info(f"Saju calculate: {req.year}-{req.month}-{req.day} {req.hour}:{req.minute}")
     pool = await get_pool()
 
     async with pool.acquire() as conn:

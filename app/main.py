@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import logging
+import sys
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,11 +11,27 @@ from app.core.config import settings
 from app.core.database import close_pool
 from app.core.auth import APIKeyMiddleware
 
+# 파일 로깅 설정
+LOG_FILE = "/tmp/myeonri-api.log"
+file_handler = logging.FileHandler(LOG_FILE)
+file_handler.setFormatter(logging.Formatter(
+    "%(asctime)s %(levelname)s %(name)s: %(message)s"
+))
+logging.getLogger().addHandler(file_handler)
+logging.getLogger().setLevel(logging.INFO)
+
+# uvicorn access log도 파일로
+uvicorn_logger = logging.getLogger("uvicorn.access")
+uvicorn_logger.addHandler(file_handler)
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     docs_url="/docs",
 )
+
+# 애플리케이션 로거
+logger = logging.getLogger("myeonri-api")
 
 # CORS
 app.add_middleware(
@@ -41,4 +60,5 @@ async def shutdown():
 
 @app.get("/health")
 async def health():
+    logger.info("Health check called")
     return {"status": "ok", "version": settings.APP_VERSION}

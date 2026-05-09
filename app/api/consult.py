@@ -1,4 +1,6 @@
 from __future__ import annotations
+import logging
+logger = logging.getLogger("myeonri-api")
 
 import json
 from enum import Enum
@@ -46,6 +48,7 @@ class ConsultRequest(BaseModel):
 
 @router.post("/analyze")
 async def consult_analyze(req: ConsultRequest):
+    logger.info(f"Consult analyze: category={req.category.value} question_len={len(req.question)}")
     from app.core.database import get_pool
 
     # 사주 데이터 준비
