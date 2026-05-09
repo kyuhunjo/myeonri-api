@@ -35,5 +35,9 @@ class Settings:
     # API Key Authentication
     API_KEY: str = os.getenv("API_KEY", "")
 
+    # Logging
+    LOG_TAIL_DEFAULT: int = int(os.getenv("LOG_TAIL_DEFAULT", "100"))
+    LOG_TAIL_MAX: int = int(os.getenv("LOG_TAIL_MAX", "1000"))
+
 
 settings = Settings()
