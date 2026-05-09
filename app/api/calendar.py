@@ -5,6 +5,7 @@ logger = logging.getLogger("myeonri-api")
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.core.database import get_pool
+from app.utils.saju import EARTHLY_BY_HANJA
 
 router = APIRouter(prefix="/calendar", tags=["만세력달력"])
 
@@ -43,5 +44,25 @@ async def get_calendar_month(req: CalendarRequest):
         "sy", "sm", "ly", "lm", "ld",
         "holiday", "sol_plan", "ddi",
     ]
-    result = [dict(zip(columns, row)) for row in rows]
+    result = []
+    for row in rows:
+        item = dict(zip(columns, row))
+        # 일진 기준 띠 정보 추가
+        hdganjee = item.get("hdganjee", "")
+        if hdganjee and len(hdganjee) >= 2:
+            branch_hanja = hdganjee[1]  # 지지 한자 (예: 亥)
+            branch_info = EARTHLY_BY_HANJA.get(branch_hanja)
+            if branch_info:
+                item["day_ddi"] = branch_info.get("zodiac", "")
+                item["day_branch_hanja"] = branch_info.get("hanja", "")
+                item["day_branch_hangul"] = branch_info.get("hangul", "")
+            else:
+                item["day_ddi"] = ""
+                item["day_branch_hanja"] = ""
+                item["day_branch_hangul"] = ""
+        else:
+            item["day_ddi"] = ""
+            item["day_branch_hanja"] = ""
+            item["day_branch_hangul"] = ""
+        result.append(item)
     return {"data": result}
