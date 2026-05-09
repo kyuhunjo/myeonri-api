@@ -19,6 +19,10 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
+        # CORS preflight는 항상 통과
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         # Swagger UI 관련 정적 파일은 통과
         if path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/redoc"):
             return await call_next(request)
