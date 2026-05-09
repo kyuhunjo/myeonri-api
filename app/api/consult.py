@@ -137,45 +137,48 @@ async def _stream_groq(saju: dict, req: ConsultRequest) -> AsyncGenerator[str, N
 
     import httpx
 
-    async with httpx.AsyncClient(timeout=300) as client:
-        async with client.stream(
-            "POST",
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": settings.GROQ_MODEL,
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.7,
-                "max_tokens": 1000,
-                "stream": True,
-            },
-        ) as resp:
-            if resp.status_code != 200:
-                error_body = await resp.aread()
-                yield f"data: {json.dumps({'error': error_body.decode()[:200]})}\n\n"
-                return
+    try:
+        async with httpx.AsyncClient(timeout=300) as client:
+            async with client.stream(
+                "POST",
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.GROQ_MODEL,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 1000,
+                    "stream": True,
+                },
+            ) as resp:
+                if resp.status_code != 200:
+                    error_body = await resp.aread()
+                    yield f"data: {json.dumps({'error': error_body.decode()[:200]})}\n\n"
+                    return
 
-            async for line in resp.aiter_lines():
-                if line.startswith("data: "):
-                    chunk = line[6:].strip()
-                    if chunk == "[DONE]":
-                        continue
-                    try:
-                        data = json.loads(chunk)
-                        delta = data["choices"][0].get("delta", {})
-                        content = delta.get("content", "")
-                        if content:
-                            yield f"data: {json.dumps({'text': content})}\n\n"
-                    except (json.JSONDecodeError, KeyError):
-                        continue
-
-    yield "data: [DONE]\n\n"
+                async for line in resp.aiter_lines():
+                    if line.startswith("data: "):
+                        chunk = line[6:].strip()
+                        if chunk == "[DONE]":
+                            continue
+                        try:
+                            data = json.loads(chunk)
+                            delta = data["choices"][0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                yield f"data: {json.dumps({'text': content})}\n\n"
+                        except (json.JSONDecodeError, KeyError):
+                            continue
+    except Exception as e:
+        yield f"data: {json.dumps({'error': str(e)[:200]})}\n\n"
+    finally:
+        yield "data: [DONE]\n\n"
 
 
 @router.post("/analyze/stream")
