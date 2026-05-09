@@ -169,3 +169,84 @@ async def get_consult_history(google_id: str):
             "created_at": str(row[5]) if row[5] else None,
         })
     return {"history": result}
+
+
+@router.get("/list")
+async def get_users(admin_id: str):
+    """사용자 목록 조회 (관리자 전용)"""
+    from app.core.database import get_pool
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT role FROM users WHERE google_id = %s LIMIT 1",
+                (admin_id,),
+            )
+            row = await cur.fetchone()
+    if not row or row[0] != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden: admin only")
+
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT id, google_id, email, name, birth_year, birth_month, birth_day, "
+                "gender, calendar, role, created_at "
+                "FROM users ORDER BY created_at DESC"
+            )
+            rows = await cur.fetchall()
+
+    result = []
+    for row in rows:
+        result.append({
+            "id": row[0],
+            "google_id": row[1],
+            "email": row[2],
+            "name": row[3],
+            "birth_year": row[4],
+            "birth_month": row[5],
+            "birth_day": row[6],
+            "gender": row[7],
+            "calendar": row[8],
+            "role": row[9],
+            "created_at": str(row[10]) if row[10] else None,
+        })
+    return {"users": result}
+
+
+class UpdateRoleRequest(BaseModel):
+    admin_id: str
+    target_google_id: str
+    role: str
+
+
+@router.patch("/role")
+async def update_user_role(req: UpdateRoleRequest):
+    """사용자 역할 변경 (관리자 전용)"""
+    from app.core.database import get_pool
+
+    if req.role not in ("user", "admin"):
+        raise HTTPException(status_code=400, detail="Invalid role. Must be 'user' or 'admin'")
+
+    pool = await get_pool()
+
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT role FROM users WHERE google_id = %s LIMIT 1",
+                (req.admin_id,),
+            )
+            row = await cur.fetchone()
+    if not row or row[0] != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden: admin only")
+
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "UPDATE users SET role = %s, updated_at = NOW() WHERE google_id = %s",
+                (req.role, req.target_google_id),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="User not found")
+
+    return {"success": True, "role": req.role}
