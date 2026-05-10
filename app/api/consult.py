@@ -315,6 +315,81 @@ async def _stream_daily_groq(saju: dict) -> AsyncGenerator[str, None]:
         yield "data: [DONE]\n\n"
 
 
+async def _stream_groq(saju: dict, req: ConsultRequest) -> AsyncGenerator[str, None]:
+    """카테고리 상담 스트리밍"""
+    category_instruction = CATEGORY_PROMPTS.get(req.category.value, "")
+    extra_question = f"\n\n사용자의 추가 질문: {req.question}" if req.question else ""
+
+    user_prompt = f"""사주 정보: {json.dumps(saju, ensure_ascii=False, indent=2)}
+
+상담 주제: {category_instruction}{extra_question}
+
+사주 정보를 바탕으로 상담 답변을 해주세요."""
+
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=300) as client:
+            async with client.stream(
+                "POST",
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.GROQ_MODEL,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                    "stream": True,
+                },
+            ) as resp:
+                if resp.status_code != 200:
+                    error_body = await resp.aread()
+                    yield f"data: {json.dumps({'error': error_body.decode()[:200]})}\n\n"
+                    return
+
+                async for line in resp.aiter_lines():
+                    if line.startswith("data: "):
+                        chunk = line[6:].strip()
+                        if chunk == "[DONE]":
+                            continue
+                        try:
+                            data = json.loads(chunk)
+                            delta = data["choices"][0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                yield f"data: {json.dumps({'text': content})}\n\n"
+                        except (json.JSONDecodeError, KeyError):
+                            continue
+    except Exception as e:
+        yield f"data: {json.dumps({'error': str(e)[:200]})}\n\n"
+    finally:
+        yield "data: [DONE]\n\n"
+
+
+@router.post("/analyze/stream")
+async def consult_analyze_stream(req: ConsultRequest):
+    """카테고리 상담 분석 (SSE 스트리밍)"""
+    saju = await _get_saju_data(req)
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="Groq API 키가 설정되지 않았습니다")
+
+    return StreamingResponse(
+        _stream_groq(saju, req),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.post("/daily")
 async def consult_daily(req: DailyFortuneRequest):
     """오늘의 운세 (일진 기준, SSE 스트리밍)"""
