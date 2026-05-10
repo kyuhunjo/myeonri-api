@@ -63,7 +63,7 @@ class ConsultRequest(BaseModel):
 
 
 async def _get_saju_data(req: ConsultRequest) -> dict:
-    """사주 데이터 조회 (파라미터 or DB)"""
+    """사주 데이터 조회 (saju_profiles 테이블)"""
     saju = req.saju_result
     if saju:
         return saju
@@ -73,7 +73,9 @@ async def _get_saju_data(req: ConsultRequest) -> dict:
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT saju_data FROM users WHERE google_id = %s LIMIT 1",
+                "SELECT sp.saju_data FROM users u "
+                "JOIN saju_profiles sp ON sp.user_id = u.id AND sp.is_primary = 1 "
+                "WHERE u.google_id = %s LIMIT 1",
                 (req.google_id,),
             )
             row = await cur.fetchone()
@@ -430,7 +432,9 @@ async def consult_daily(req: DailyFortuneRequest):
         async with pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(
-                    "SELECT saju_data FROM users WHERE google_id = %s LIMIT 1",
+                    "SELECT sp.saju_data FROM users u "
+                    "JOIN saju_profiles sp ON sp.user_id = u.id AND sp.is_primary = 1 "
+                    "WHERE u.google_id = %s LIMIT 1",
                     (req.google_id,),
                 )
                 row = await cur.fetchone()

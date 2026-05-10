@@ -33,16 +33,21 @@ class UserSaveRequest(BaseModel):
     google_id: str
     email: str = ""
     name: str = ""
-    birth_year: int | None = None
-    birth_month: int | None = None
-    birth_day: int | None = None
-    birth_hour: int | None = None
-    birth_minute: int | None = None
-    gender: str = "남"
-    calendar: str = "solar"
-    saju_data: dict | None = None
 
 
 class UserResponse(BaseModel):
     found: bool
     user: dict | None = None
+
+
+class SajuProfileResponse(BaseModel):
+    id: int
+    birth_year: int
+    birth_month: int
+    birth_day: int
+    birth_hour: int | None = None
+    birth_minute: int | None = None
+    gender: str | None = None
+    calendar: str | None = None
+    saju_data: dict | None = None
+    is_primary: bool
