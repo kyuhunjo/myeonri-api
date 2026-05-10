@@ -190,11 +190,13 @@ async def _stream_groq(saju: dict, req: ConsultRequest) -> AsyncGenerator[str, N
 async def _stream_daily_groq(saju: dict) -> AsyncGenerator[str, None]:
     """오늘의 운세 전용 Groq 스트리밍 (DB에서 오늘 일진 조회 후 일진 기준 분석)"""
     from app.core.database import get_pool
+    from app.utils.saju import get_sibsin, get_sibsin_for_branch, HEAVENLY_BY_HANJA, EARTHLY_BY_HANJA
 
     # ── 오늘 일진 데이터 DB에서 조회 ──
     from datetime import datetime, timezone
+    import datetime as dt
     now = datetime.now(timezone.utc).astimezone()
-    kst_now = now.replace(tzinfo=None) + __import__("datetime").timedelta(hours=9)
+    kst_now = now.replace(tzinfo=None) + dt.timedelta(hours=9)
     year = kst_now.year
     month = kst_now.month
     day = kst_now.day
@@ -234,40 +236,46 @@ async def _stream_daily_groq(saju: dict) -> AsyncGenerator[str, None]:
         return
 
     # ── 사용자의 일간 정보 추출 ──
-    day_stem_hanja = ""
-    day_stem_kr = ""
-    elements_map = {"갑":"목","을":"목","병":"화","정":"화","무":"토","기":"토","경":"금","신":"금","임":"수","계":"수"}
-    stems_hanja_to_kr = {"甲":"갑","乙":"을","丙":"병","丁":"정","戊":"무","己":"기","庚":"경","辛":"신","壬":"임","癸":"계"}
     hanja_pillars = saju.get("hanja", {}) if isinstance(saju.get("hanja"), dict) else {}
     ilju = hanja_pillars.get("ilju", "")
-    if ilju and len(ilju) >= 1:
-        day_stem_hanja = ilju[0]
-        day_stem_kr = stems_hanja_to_kr.get(day_stem_hanja, "")
+    day_stem_hanja = ilju[0] if ilju and len(ilju) >= 1 else ""
+
+    stems_hanja_to_kr = {"甲":"갑","乙":"을","丙":"병","丁":"정","戊":"무","己":"기","庚":"경","辛":"신","壬":"임","癸":"계"}
+    branches_hanja_to_kr = {"子":"자","丑":"축","寅":"인","卯":"묘","辰":"진","巳":"사","午":"오","未":"미","申":"신","酉":"유","戌":"술","亥":"해"}
+    elements_map = {"갑":"목","을":"목","병":"화","정":"화","무":"토","기":"토","경":"금","신":"금","임":"수","계":"수"}
+
+    day_stem_kr = stems_hanja_to_kr.get(day_stem_hanja, "")
     day_stem_elem = elements_map.get(day_stem_kr, "")
 
-    # ── 오늘 일진의 천간/지지 한글 변환 ──
+    # ── 오늘 일진의 천간/지지 ──
     hd = iljin.get("hdganjee", "")
     kd = iljin.get("kdganjee", "")
     today_stem_hanja = hd[0] if hd and len(hd) >= 1 else ""
     today_branch_hanja = hd[1] if hd and len(hd) >= 2 else ""
     today_stem_kr = stems_hanja_to_kr.get(today_stem_hanja, "")
     today_stem_elem = elements_map.get(today_stem_kr, "")
-    branches_hanja_to_kr = {"子":"자","丑":"축","寅":"인","卯":"묘","卯":"묘","辰":"진","巳":"사","午":"오","未":"미","申":"신","酉":"유","戌":"술","亥":"해"}
     today_branch_kr = branches_hanja_to_kr.get(today_branch_hanja, "")
+    branch_elem = EARTHLY_BY_HANJA.get(today_branch_hanja, {}).get("element", "") if today_branch_hanja else ""
+
+    # ── 십신 관계 계산 ──
+    stem_sibsin = ""
+    branch_sibsin = ""
+    if day_stem_hanja and today_stem_hanja:
+        stem_sibsin = get_sibsin(day_stem_hanja, today_stem_hanja)
+    if day_stem_hanja and today_branch_hanja:
+        branch_sibsin = get_sibsin_for_branch(day_stem_hanja, today_branch_hanja)
 
     # ── 프롬프트 구성 ──
     user_prompt = f"""[사용자 사주]
 일간: {day_stem_hanja}({day_stem_kr}) · 오행: {day_stem_elem}
-사주 정보: {json.dumps(saju, ensure_ascii=False, indent=2)}
 
 [오늘의 일진 - {year}년 {month}월 {day}일 {weekday_str}]
 일진: {hd}({kd})
-천간: {today_stem_hanja}({today_stem_kr}) · 오행: {today_stem_elem}
-지지: {today_branch_hanja}({today_branch_kr})
+천간: {today_stem_hanja}({today_stem_kr}) · 오행: {today_stem_elem} → 나와의 관계: {stem_sibsin}
+지지: {today_branch_hanja}({today_branch_kr}) · 오행: {branch_elem} → 나와의 관계: {branch_sibsin}
 음력: {iljin.get('lm','')}월 {iljin.get('ld','')}일
-절기/기념일: {iljin.get('sol_plan','') or '없음'}
 
-오늘의 일진이 사용자의 사주(특히 일간)와 어떤 관계인지 분석하여 오늘 하루의 운세를 풀이해주세요. 일진의 천간과 지지 오행이 사용자의 일간 오행과 상생/상극 관계인지, 어떤 십신에 해당하는지 등을 짚어주세요."""
+오늘의 일진(천간+지지)이 나(일간)에게 어떤 의미인지 분석해주세요. 일진의 천간은 나에게 {stem_sibsin}이 되고, 지지는 나에게 {branch_sibsin}이 됩니다. 이 관계를 바탕으로 오늘 하루의 운세를 풀이해주세요."""
 
     import httpx
 
