@@ -288,7 +288,15 @@ async def _stream_daily_groq(saju: dict) -> AsyncGenerator[str, None]:
 지지: {today_branch_hanja}({today_branch_kr}) · 오행: {branch_elem} → 나와의 관계: {branch_sibsin}
 음력: {iljin.get('lm','')}월 {iljin.get('ld','')}일
 
-오늘의 일진(천간+지지)이 나(일간)에게 어떤 의미인지 분석해주세요. 일진의 천간은 나에게 {stem_sibsin}이 되고, 지지는 나에게 {branch_sibsin}이 됩니다. 이 관계를 바탕으로 오늘 하루의 운세를 풀이해주세요."""
+오늘의 일진(천간+지지)이 나(일간)에게 어떤 의미인지 분석해주세요. 일진의 천간은 나에게 {stem_sibsin}이 되고, 지지는 나에게 {branch_sibsin}이 됩니다. 이 관계를 바탕으로 오늘 하루의 전반적인 운세를 다음 항목을 모두 포함하여 풀이해주세요:
+- 💼 사업/직장운
+- 💰 재물운
+- ❤️ 연애/인연운
+- 🏥 건강운
+- 🤝 대인관계
+- 📚 학업/적성
+
+각 항목을 1~2문장으로 간결하게 풀이하고, 마지막에 한 줄 조언으로 마무리해주세요."""
 
     import httpx
 
