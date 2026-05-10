@@ -265,6 +265,19 @@ async def _stream_daily_groq(saju: dict) -> AsyncGenerator[str, None]:
     if day_stem_hanja and today_branch_hanja:
         branch_sibsin = get_sibsin_for_branch(day_stem_hanja, today_branch_hanja)
 
+    # ── SSE 시작: 십신 메타데이터 먼저 전송 ──
+    meta = {
+        "day_stem_hanja": day_stem_hanja,
+        "day_stem_kr": day_stem_kr,
+        "today_stem_hanja": today_stem_hanja,
+        "today_stem_kr": today_stem_kr,
+        "today_branch_hanja": today_branch_hanja,
+        "today_branch_kr": today_branch_kr,
+        "stem_sibsin": stem_sibsin,
+        "branch_sibsin": branch_sibsin,
+    }
+    yield f"data: {json.dumps({'meta': meta})}\n\n"
+
     # ── 프롬프트 구성 ──
     user_prompt = f"""[사용자 사주]
 일간: {day_stem_hanja}({day_stem_kr}) · 오행: {day_stem_elem}
