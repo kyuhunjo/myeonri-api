@@ -12,7 +12,7 @@ from app.core.database import close_pool
 from app.core.auth import APIKeyMiddleware
 
 # 파일 로깅 설정
-LOG_FILE = "/tmp/myeonri-api.log"
+LOG_FILE = "/var/log/myeonri/api.log"
 file_handler = logging.FileHandler(LOG_FILE)
 file_handler.setFormatter(logging.Formatter(
     "%(asctime)s %(levelname)s %(name)s: %(message)s"
