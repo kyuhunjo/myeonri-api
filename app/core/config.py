@@ -21,7 +21,7 @@ class Settings:
     # CORS
     CORS_ORIGINS: list[str] = os.getenv(
         "CORS_ORIGINS",
-        "https://myeonri.imjoe24.com,http://localhost:5173",
+        "https://imjoe24.com,https://myeonri.imjoe24.com,http://localhost:5173",
     ).split(",")
 
     # Groq
