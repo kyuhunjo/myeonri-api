@@ -127,11 +127,20 @@ async def save_saju_profile(req: SajuProfileSaveRequest):
     # 기존 primary 프로필 확인
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            if req.is_primary:
+            # 이 사용자에게 primary 프로필이 하나도 없으면 강제로 primary
+            await cur.execute(
+                "SELECT COUNT(*) FROM saju_profiles WHERE user_id = %s AND is_primary = 1",
+                (user_id,),
+            )
+            has_primary = (await cur.fetchone())[0] > 0
+            make_primary = req.is_primary or not has_primary
+
+            if make_primary:
                 await cur.execute(
                     "UPDATE saju_profiles SET is_primary = 0 WHERE user_id = %s",
                     (user_id,),
                 )
+
             await cur.execute(
                 "SELECT id FROM saju_profiles WHERE user_id = %s AND is_primary = 1 LIMIT 1",
                 (user_id,),
@@ -153,13 +162,13 @@ async def save_saju_profile(req: SajuProfileSaveRequest):
                         req.birth_hour, req.birth_minute,
                         req.gender, req.calendar,
                         json.dumps(req.saju_data, ensure_ascii=False) if req.saju_data else None,
-                        1 if req.is_primary else 0,
+                        1 if make_primary else 0,
                         profile_row[0],
                     ),
                 )
                 return {"success": True, "action": "updated", "profile_id": profile_row[0]}
             else:
-                # INSERT
+                # INSERT — 첫 프로필이면 무조건 primary
                 await cur.execute(
                     """INSERT INTO saju_profiles
                         (user_id, nickname, birth_year, birth_month, birth_day,
@@ -171,7 +180,7 @@ async def save_saju_profile(req: SajuProfileSaveRequest):
                         req.birth_hour, req.birth_minute,
                         req.gender, req.calendar,
                         json.dumps(req.saju_data, ensure_ascii=False) if req.saju_data else None,
-                        1 if req.is_primary else 0,
+                        1,
                     ),
                 )
                 return {"success": True, "action": "created", "profile_id": cur.lastrowid}
