@@ -46,6 +46,27 @@ async def check_user(req: UserCheckRequest):
         except (json.JSONDecodeError, TypeError):
             user["saju_data"] = None
 
+    # 역할 및 권한 정보 추가
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT r.id, r.name FROM user_roles ur "
+                "JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = %s",
+                (user["id"],),
+            )
+            user["roles"] = [{"id": r[0], "name": r[1]} for r in await cur.fetchall()]
+
+            all_perms = set()
+            for role in user["roles"]:
+                await cur.execute(
+                    "SELECT p.code FROM role_permissions rp "
+                    "JOIN permissions p ON p.id = rp.permission_id WHERE rp.role_id = %s",
+                    (role["id"],),
+                )
+                for p in await cur.fetchall():
+                    all_perms.add(p[0])
+            user["permissions"] = sorted(all_perms)
+
     return UserResponse(found=True, user=user)
 
 
