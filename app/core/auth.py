@@ -12,6 +12,8 @@ PUBLIC_PATHS = {
     "/docs",
     "/openapi.json",
     "/redoc",
+    "/auth/google",
+    "/auth/google/callback",
 }
 
 

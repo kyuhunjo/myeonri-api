@@ -39,5 +39,21 @@ class Settings:
     LOG_TAIL_DEFAULT: int = int(os.getenv("LOG_TAIL_DEFAULT", "100"))
     LOG_TAIL_MAX: int = int(os.getenv("LOG_TAIL_MAX", "1000"))
 
+    # Google OAuth
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    GOOGLE_REDIRECT_URI: str = os.getenv(
+        "GOOGLE_REDIRECT_URI",
+        "https://api.imjoe24.com/auth/google/callback",
+    )
+
+    # JWT for frontend token
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "")
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRY_HOURS: int = 1
+
+    # Frontend URL
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://imjoe24.com")
+
 
 settings = Settings()
