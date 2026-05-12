@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import RedirectResponse
 
 from app.core.config import settings
@@ -48,14 +48,24 @@ async def google_login():
     return RedirectResponse(url=url, status_code=302)
 
 
-@router.get("/google/callback")
+@router.api_route("/google/callback", methods=["GET", "POST"])
 async def google_callback(
     request: Request,
     code: str | None = Query(None),
     state: str | None = Query(None),
     error: str | None = Query(None),
 ):
-    """구글 OAuth 콜백 처리"""
+    """구글 OAuth 콜백 처리 (GET 및 POST 모두 처리)"""
+    # POST body에서도 code 추출
+    if request.method == "POST":
+        try:
+            body = await request.json()
+            code = code or body.get("code")
+            state = state or body.get("state")
+            error = error or body.get("error")
+        except Exception:
+            pass
+
     # 에러 처리
     if error:
         logger.warning(f"Google OAuth error: {error}")
@@ -103,7 +113,6 @@ async def google_callback(
                 )
 
             access_token = token_data["access_token"]
-            # refresh_token = token_data.get("refresh_token")  # 나중에 필요하면 사용
 
             # 사용자 정보 조회
             user_res = await client.get(
@@ -113,7 +122,6 @@ async def google_callback(
             user_info = user_res.json()
 
         # 구글 access_token과 user_info를 프론트로 전달
-        # (JWT 없이 직접 전달 — 프론트에서 localStorage에 저장)
         redirect_params = urlencode({
             "access_token": access_token,
             "sub": user_info["sub"],
@@ -124,7 +132,6 @@ async def google_callback(
 
         logger.info(f"Google login success: {user_info.get('email')} ({user_info['sub'][:8]}...)")
 
-        # 프론트엔드로 리디렉트
         redirect_url = f"{settings.FRONTEND_URL}/auth/callback?{redirect_params}"
         return RedirectResponse(url=redirect_url, status_code=302)
 
