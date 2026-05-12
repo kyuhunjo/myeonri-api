@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import logging
 import secrets
-from datetime import datetime, timedelta, timezone
+from urllib.parse import urlencode
 
 import httpx
-import jwt
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Query
 from fastapi.responses import RedirectResponse
 
 from app.core.config import settings
@@ -112,26 +111,20 @@ async def google_callback(
             )
             user_info = user_res.json()
 
-        # JWT 생성 (frontend에서 사용할 토큰)
-        now = datetime.now(timezone.utc)
-        jwt_payload = {
+        # 구글 access_token과 user_info를 프론트로 전달
+        # (JWT 없이 직접 전달 — 프론트에서 localStorage에 저장)
+        redirect_params = urlencode({
+            "access_token": access_token,
             "sub": user_info["sub"],
             "name": user_info.get("name", ""),
             "email": user_info.get("email", ""),
             "picture": user_info.get("picture", ""),
-            "iat": now,
-            "exp": now + timedelta(hours=settings.JWT_EXPIRY_HOURS),
-        }
-        frontend_token = jwt.encode(
-            jwt_payload,
-            settings.JWT_SECRET,
-            algorithm=settings.JWT_ALGORITHM,
-        )
+        })
 
         logger.info(f"Google login success: {user_info.get('email')} ({user_info['sub'][:8]}...)")
 
-        # 프론트엔드로 리디렉트 (token을 URL fragment로 전달)
-        redirect_url = f"{settings.FRONTEND_URL}/auth/callback#token={frontend_token}"
+        # 프론트엔드로 리디렉트
+        redirect_url = f"{settings.FRONTEND_URL}/auth/callback?{redirect_params}"
         return RedirectResponse(url=redirect_url, status_code=302)
 
     except httpx.HTTPError as e:
