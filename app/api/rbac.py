@@ -111,6 +111,41 @@ async def update_user_role(req: UserRoleUpdateRequest):
     return {"success": True, "action": req.action, "role_id": req.role_id}
 
 
+# ── 역할-권한 업데이트 ──
+
+
+class RolePermissionUpdateRequest(BaseModel):
+    admin_id: str
+    role_id: int
+    permission_id: int
+    action: str  # 'add' | 'remove'
+
+
+@router.post("/role-permission/update")
+async def update_role_permission(req: RolePermissionUpdateRequest):
+    """역할에 권한 추가/제거 (관리자 전용)"""
+    await _check_admin(req.admin_id)
+
+    if req.action not in ("add", "remove"):
+        raise HTTPException(status_code=400, detail="action must be 'add' or 'remove'")
+
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            if req.action == "add":
+                await cur.execute(
+                    "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (%s, %s)",
+                    (req.role_id, req.permission_id),
+                )
+            else:
+                await cur.execute(
+                    "DELETE FROM role_permissions WHERE role_id = %s AND permission_id = %s",
+                    (req.role_id, req.permission_id),
+                )
+
+    return {"success": True, "action": req.action, "role_id": req.role_id, "permission_id": req.permission_id}
+
+
 # ── 권한 확인 헬퍼 ──
 
 
