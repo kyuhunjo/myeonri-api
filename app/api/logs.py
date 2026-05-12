@@ -9,7 +9,8 @@ from app.core.config import settings
 
 router = APIRouter(prefix="/logs", tags=["로그"])
 
-LOG_FILE = "/tmp/myeonri-api.log"
+# 영구 볼륨에 저장되는 로그 파일
+LOG_FILE = "/var/log/myeonri/api.log"
 
 
 async def _check_admin(google_id: str):
@@ -30,7 +31,7 @@ async def _check_admin(google_id: str):
 @router.get("")
 async def get_logs(
     admin_id: str = Query(description="관리자 google_id"),
-    tail: int = Query(default=100, ge=10, le=1000, description="가져올 라인 수"),
+    tail: int = Query(default=200, ge=10, le=5000, description="가져올 라인 수"),
     level: str = Query(default="", description="로그 레벨 필터 (INFO, ERROR, WARNING)"),
     grep: str = Query(default="", description="키워드 필터"),
 ):
