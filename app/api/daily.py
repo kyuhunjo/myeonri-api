@@ -1,0 +1,211 @@
+"""
+오늘의 운세 API
+일진 기준 사용자 사주 분석 → Groq 스트리밍
+"""
+
+from __future__ import annotations
+import json
+import logging
+from typing import AsyncGenerator
+
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+from app.core.config import settings
+from app.core.database import get_pool
+from app.utils.saju import (
+    get_sibsin, get_sibsin_for_branch, EARTHLY_BY_HANJA,
+)
+
+logger = logging.getLogger("myeonri-api")
+router = APIRouter(prefix="/consult", tags=["오늘의운세"])
+
+SYSTEM_PROMPT = """당신은 사주명리 기반 심리상담사입니다. 사주 정보(4주, 십신, 오행)를 바탕으로 심리적 통찰과 조언을 제공합니다.
+
+규칙:
+- 인사말 없이 바로 본문 시작
+- 마지막에 추가 질문 유도하지 말고 자연스럽게 마무리
+- 600~800자로 충실하게, 따뜻하고 공감적인 어조로
+- 존댓말 사용"""
+
+
+class DailyFortuneRequest(BaseModel):
+    google_id: str
+    saju_result: dict | None = None
+
+
+async def _stream_daily_groq(saju: dict) -> AsyncGenerator[str, None]:
+    """오늘의 운세 Groq 스트리밍"""
+    from datetime import datetime, timezone
+    import datetime as dt
+
+    now = datetime.now(timezone.utc).astimezone()
+    kst_now = now.replace(tzinfo=None) + dt.timedelta(hours=9)
+    year = kst_now.year
+    month = kst_now.month
+    day = kst_now.day
+    weekdays = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"]
+    weekday_str = weekdays[kst_now.weekday()]
+
+    iljin = None
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "SELECT cd_hdganjee, cd_kdganjee, cd_hyganjee, cd_kyganjee, "
+                "cd_lm, cd_ld, cd_sol_plan, cd_kterms, cd_ddi "
+                "FROM calenda_data_fixed "
+                "WHERE cd_sy = %s AND cd_sm = %s AND cd_sd = %s "
+                "LIMIT 1",
+                (year, month, day),
+            )
+            row = await cur.fetchone()
+
+    if row:
+        iljin = {
+            "hdganjee": row[0], "kdganjee": row[1],
+            "hyganjee": row[2], "kyganjee": row[3],
+            "lm": row[4], "ld": row[5],
+            "sol_plan": row[6], "kterms": row[7], "ddi": row[8],
+        }
+
+    if not iljin:
+        yield f"data: {json.dumps({'error': '오늘의 일진 데이터를 찾을 수 없습니다'})}\n\n"
+        yield "data: [DONE]\n\n"
+        return
+
+    hanja_pillars = saju.get("hanja", {}) if isinstance(saju.get("hanja"), dict) else {}
+    ilju = hanja_pillars.get("ilju", "")
+    day_stem_hanja = ilju[0] if ilju and len(ilju) >= 1 else ""
+
+    stems_hanja_to_kr = {"甲":"갑","乙":"을","丙":"병","丁":"정","戊":"무","己":"기","庚":"경","辛":"신","壬":"임","癸":"계"}
+    branches_hanja_to_kr = {"子":"자","丑":"축","寅":"인","卯":"묘","辰":"진","巳":"사","午":"오","未":"미","申":"신","酉":"유","戌":"술","亥":"해"}
+    elements_map = {"갑":"목","을":"목","병":"화","정":"화","무":"토","기":"토","경":"금","신":"금","임":"수","계":"수"}
+
+    day_stem_kr = stems_hanja_to_kr.get(day_stem_hanja, "")
+    day_stem_elem = elements_map.get(day_stem_kr, "")
+
+    hd = iljin.get("hdganjee", "")
+    kd = iljin.get("kdganjee", "")
+    today_stem_hanja = hd[0] if hd and len(hd) >= 1 else ""
+    today_branch_hanja = hd[1] if hd and len(hd) >= 2 else ""
+    today_stem_kr = stems_hanja_to_kr.get(today_stem_hanja, "")
+    today_stem_elem = elements_map.get(today_stem_kr, "")
+    today_branch_kr = branches_hanja_to_kr.get(today_branch_hanja, "")
+    branch_elem = EARTHLY_BY_HANJA.get(today_branch_hanja, {}).get("element", "") if today_branch_hanja else ""
+
+    stem_sibsin = ""
+    branch_sibsin = ""
+    if day_stem_hanja and today_stem_hanja:
+        stem_sibsin = get_sibsin(day_stem_hanja, today_stem_hanja)
+    if day_stem_hanja and today_branch_hanja:
+        branch_sibsin = get_sibsin_for_branch(day_stem_hanja, today_branch_hanja)
+
+    meta = {
+        "day_stem_hanja": day_stem_hanja, "day_stem_kr": day_stem_kr,
+        "today_stem_hanja": today_stem_hanja, "today_stem_kr": today_stem_kr,
+        "today_branch_hanja": today_branch_hanja, "today_branch_kr": today_branch_kr,
+        "stem_sibsin": stem_sibsin, "branch_sibsin": branch_sibsin,
+    }
+    yield f"data: {json.dumps({'meta': meta})}\n\n"
+
+    user_prompt = f"""[사용자 사주]
+일간: {day_stem_hanja}({day_stem_kr}) · 오행: {day_stem_elem}
+
+[오늘의 일진 - {year}년 {month}월 {day}일 {weekday_str}]
+일진: {hd}({kd})
+천간: {today_stem_hanja}({today_stem_kr}) · 오행: {today_stem_elem} → 나와의 관계: {stem_sibsin}
+지지: {today_branch_hanja}({today_branch_kr}) · 오행: {branch_elem} → 나와의 관계: {branch_sibsin}
+음력: {iljin.get('lm','')}월 {iljin.get('ld','')}일
+
+오늘의 일진(천간+지지)이 나(일간)에게 어떤 의미인지 분석해주세요. 일진의 천간은 나에게 {stem_sibsin}이 되고, 지지는 나에게 {branch_sibsin}이 됩니다. 이 관계를 바탕으로 오늘 하루의 운세를 따뜻하고 깊이 있게 풀이해주세요. 다음 항목을 모두 포함해주세요:
+
+💼 **사업/직장운** — 오늘 일의 흐름, 집중력, 의사결정에 관한 조언
+💰 **재물운** — 금전의 흐름, 소비/저축 패턴
+❤️ **연애/인연운** — 감정의 기복, 상대와의 교류, 인연의 기운
+🏥 **건강운** — 체력, 컨디션, 주의할 신체 부위
+🤝 **대인관계** — 주변 사람들과의 소통, 협력, 충돌 가능성
+📚 **학업/적성** — 배움과 성장의 기회, 집중력, 아이디어
+
+각 항목을 2~3문장으로 충실히 풀이하고, 마지막에 오늘을 위한 한 줄 조언과 함께 "당신의 하루가 빛나길 바랍니다"로 마무리해주세요."""
+
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=300) as client:
+            async with client.stream(
+                "POST",
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.GROQ_MODEL,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 2048,
+                    "stream": True,
+                },
+            ) as resp:
+                if resp.status_code != 200:
+                    error_body = await resp.aread()
+                    yield f"data: {json.dumps({'error': error_body.decode()[:200]})}\n\n"
+                    return
+
+                async for line in resp.aiter_lines():
+                    if line.startswith("data: "):
+                        chunk = line[6:].strip()
+                        if chunk == "[DONE]":
+                            continue
+                        try:
+                            data = json.loads(chunk)
+                            delta = data["choices"][0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                yield f"data: {json.dumps({'text': content})}\n\n"
+                        except (json.JSONDecodeError, KeyError):
+                            continue
+    except Exception as e:
+        yield f"data: {json.dumps({'error': str(e)[:200]})}\n\n"
+    finally:
+        yield "data: [DONE]\n\n"
+
+
+@router.post("/daily")
+async def consult_daily(req: DailyFortuneRequest):
+    """오늘의 운세 (일진 기준, SSE 스트리밍)"""
+    saju = req.saju_result
+    if not saju:
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "SELECT sp.saju_data FROM users u "
+                    "JOIN saju_profiles sp ON sp.user_id = u.id AND sp.is_primary = 1 "
+                    "WHERE u.google_id = %s LIMIT 1",
+                    (req.google_id,),
+                )
+                row = await cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+        saju = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+        if not saju:
+            raise HTTPException(status_code=400, detail="사주 데이터가 없습니다.")
+
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="Groq API 키가 설정되지 않았습니다")
+
+    return StreamingResponse(
+        _stream_daily_groq(saju),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

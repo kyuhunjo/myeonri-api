@@ -5,7 +5,7 @@ logger = logging.getLogger("myeonri-api")
 from fastapi import APIRouter, HTTPException
 from app.api.schemas import SajuRequest, SajuResponse
 from app.core.database import get_pool
-from app.utils.saju import calculate_saju_from_calenda
+from app.utils.saju import calculate_saju_from_calenda, HEAVENLY_STEMS, EARTHLY_BRANCHES
 
 router = APIRouter(prefix="/saju", tags=["사주"])
 
@@ -18,7 +18,6 @@ async def calculate_saju(req: SajuRequest):
 
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            # 만세력 조회
             await cur.execute(
                 "SELECT * FROM calenda_data_fixed "
                 "WHERE cd_sy = %s AND cd_sm = %s AND cd_sd = %s "
@@ -30,7 +29,6 @@ async def calculate_saju(req: SajuRequest):
     if not row:
         raise HTTPException(status_code=404, detail="해당 날짜의 만세력 데이터가 없습니다")
 
-    # 컬럼명 매핑
     columns = [
         "cd_no", "cd_sgi", "cd_sy", "cd_sm", "cd_sd",
         "cd_ly", "cd_lm", "cd_ld",
@@ -58,12 +56,10 @@ async def calculate_saju(req: SajuRequest):
 @router.get("/stems")
 async def get_heavenly_stems():
     """천간 목록"""
-    from app.utils.saju import HEAVENLY_STEMS
     return HEAVENLY_STEMS
 
 
 @router.get("/branches")
 async def get_earthly_branches():
     """지지 목록"""
-    from app.utils.saju import EARTHLY_BRANCHES
     return EARTHLY_BRANCHES
