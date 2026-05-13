@@ -37,7 +37,7 @@ EARTHLY_BRANCHES = [
     {"index": 8, "hanja": "申", "hangul": "신", "element": "금", "yinyang": "양", "zodiac": "원숭이"},
     {"index": 9, "hanja": "酉", "hangul": "유", "element": "금", "yinyang": "음", "zodiac": "닭"},
     {"index": 10, "hanja": "戌", "hangul": "술", "element": "토", "yinyang": "양", "zodiac": "개"},
-    {"index": 11, "hanja": "亥", "hangul": "해", "element": "수", "yinyang": "음", "zodiac": "돼지"},
+    {"index": 11, "hanja": "亥", "hangul": "해", "element": "수", "yinyang": "양", "zodiac": "돼지"},
 ]
 
 EARTHLY_BY_HANJA = {b["hanja"]: b for b in EARTHLY_BRANCHES}
