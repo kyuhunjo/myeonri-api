@@ -1,6 +1,7 @@
 """
 천간(Heavenly Stems) 및 지지(Earthly Branches) 데이터
 DB 테이블 조회 + 메모리 캐시
+앱 startup 시 load*() 호출 → 이후 sync 접근 가능
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ _earthly_by_index: dict | None = None
 
 
 async def load_heavenly_stems() -> list[dict]:
-    """DB에서 천간 데이터 로드 (메모리 캐시)"""
+    """DB에서 천간 데이터 로드 (메모리 캐시, 중복 로드 방지)"""
     global _heavenly_stems, _heavenly_by_hanja, _heavenly_by_index
     if _heavenly_stems is not None:
         return _heavenly_stems
@@ -45,7 +46,7 @@ async def load_heavenly_stems() -> list[dict]:
 
 
 async def load_earthly_branches() -> list[dict]:
-    """DB에서 지지 데이터 로드 (메모리 캐시)"""
+    """DB에서 지지 데이터 로드 (메모리 캐시, 중복 로드 방지)"""
     global _earthly_branches, _earthly_by_hanja, _earthly_by_index
     if _earthly_branches is not None:
         return _earthly_branches
@@ -67,6 +68,49 @@ async def load_earthly_branches() -> list[dict]:
     _earthly_by_index = {b["index"]: b for b in _earthly_branches}
     logger.info(f"Loaded {len(_earthly_branches)} earthly branches from DB")
     return _earthly_branches
+
+
+# ── Sync getter (캐시 로드 후 호출 가능) ──
+
+
+def get_heavenly_sync() -> list[dict]:
+    """캐시된 천간 데이터 반환 (sync, startup 후 사용)"""
+    if _heavenly_stems is None:
+        raise RuntimeError("heavenly_stems not loaded. Call load_heavenly_stems() on startup")
+    return _heavenly_stems
+
+
+def get_heavenly_by_hanja_sync() -> dict:
+    if _heavenly_by_hanja is None:
+        raise RuntimeError("heavenly data not loaded. Call load_heavenly_stems() on startup")
+    return _heavenly_by_hanja
+
+
+def get_heavenly_by_index_sync() -> dict:
+    if _heavenly_by_index is None:
+        raise RuntimeError("heavenly data not loaded. Call load_heavenly_stems() on startup")
+    return _heavenly_by_index
+
+
+def get_earthly_sync() -> list[dict]:
+    if _earthly_branches is None:
+        raise RuntimeError("earthly data not loaded. Call load_earthly_branches() on startup")
+    return _earthly_branches
+
+
+def get_earthly_by_hanja_sync() -> dict:
+    if _earthly_by_hanja is None:
+        raise RuntimeError("earthly data not loaded. Call load_earthly_branches() on startup")
+    return _earthly_by_hanja
+
+
+def get_earthly_by_index_sync() -> dict:
+    if _earthly_by_index is None:
+        raise RuntimeError("earthly data not loaded. Call load_earthly_branches() on startup")
+    return _earthly_by_index
+
+
+# ── Async getter (최초 로드 시 DB 조회) ──
 
 
 async def get_heavenly_by_hanja() -> dict:
@@ -105,7 +149,8 @@ async def get_all_earthly() -> list[dict]:
     return _earthly_branches
 
 
-# ── 오행 순환 (상생/상극) ──
+# ── 오행 순환 (상생/상극) — sync 함수, DB 불필요 ──
+
 ELEMENT_CYCLE = ["목", "화", "토", "금", "수"]
 ELEMENT_INDEX = {e: i for i, e in enumerate(ELEMENT_CYCLE)}
 

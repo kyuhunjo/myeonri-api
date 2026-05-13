@@ -5,7 +5,7 @@ logger = logging.getLogger("myeonri-api")
 from fastapi import APIRouter, HTTPException
 from app.api.schemas import SajuRequest, SajuResponse
 from app.core.database import get_pool
-from app.utils.saju import calculate_saju_from_calenda, HEAVENLY_STEMS, EARTHLY_BRANCHES
+from app.utils.saju import calculate_saju_from_calenda
 
 router = APIRouter(prefix="/saju", tags=["사주"])
 
@@ -55,11 +55,13 @@ async def calculate_saju(req: SajuRequest):
 
 @router.get("/stems")
 async def get_heavenly_stems():
-    """천간 목록"""
-    return HEAVENLY_STEMS
+    """천간 목록 (DB 캐시)"""
+    from app.utils.constants import get_heavenly_sync
+    return get_heavenly_sync()
 
 
 @router.get("/branches")
 async def get_earthly_branches():
-    """지지 목록"""
-    return EARTHLY_BRANCHES
+    """지지 목록 (DB 캐시)"""
+    from app.utils.constants import get_earthly_sync
+    return get_earthly_sync()

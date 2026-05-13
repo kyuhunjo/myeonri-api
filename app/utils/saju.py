@@ -1,69 +1,31 @@
 """
 사주 계산 엔진 (Saju Calculation Engine)
-- 오행: 목(木), 화(火), 토(土), 금(金), 수(水)
-- 상생: 목→화→토→금→수→목
-- 상극: 목→토→수→화→금→목
+— 천간/지지 데이터는 DB에서 로드 (앱 startup 시 캐시)
+— 오행 순환 함수는 내장
 """
 
-# ── 천간 (Heavenly Stems) ──
-HEAVENLY_STEMS = [
-    {"index": 0, "hanja": "甲", "hangul": "갑", "element": "목", "yinyang": "양"},
-    {"index": 1, "hanja": "乙", "hangul": "을", "element": "목", "yinyang": "음"},
-    {"index": 2, "hanja": "丙", "hangul": "병", "element": "화", "yinyang": "양"},
-    {"index": 3, "hanja": "丁", "hangul": "정", "element": "화", "yinyang": "음"},
-    {"index": 4, "hanja": "戊", "hangul": "무", "element": "토", "yinyang": "양"},
-    {"index": 5, "hanja": "己", "hangul": "기", "element": "토", "yinyang": "음"},
-    {"index": 6, "hanja": "庚", "hangul": "경", "element": "금", "yinyang": "양"},
-    {"index": 7, "hanja": "辛", "hangul": "신", "element": "금", "yinyang": "음"},
-    {"index": 8, "hanja": "壬", "hangul": "임", "element": "수", "yinyang": "양"},
-    {"index": 9, "hanja": "癸", "hangul": "계", "element": "수", "yinyang": "음"},
-]
+from app.utils.constants import (
+    get_heavenly_sync,
+    get_heavenly_by_hanja_sync,
+    get_heavenly_by_index_sync,
+    get_earthly_sync,
+    get_earthly_by_hanja_sync,
+    get_earthly_by_index_sync,
+    ELEMENT_CYCLE,
+    ELEMENT_INDEX,
+    get_generated,
+    get_generator,
+    get_controlled,
+    get_controller,
+)
 
-HEAVENLY_BY_HANJA = {s["hanja"]: s for s in HEAVENLY_STEMS}
-HEAVENLY_BY_INDEX = {s["index"]: s for s in HEAVENLY_STEMS}
-
-# ── 지지 (Earthly Branches) ──
-EARTHLY_BRANCHES = [
-    {"index": 0, "hanja": "子", "hangul": "자", "element": "수", "yinyang": "양", "zodiac": "쥐"},
-    {"index": 1, "hanja": "丑", "hangul": "축", "element": "토", "yinyang": "음", "zodiac": "소"},
-    {"index": 2, "hanja": "寅", "hangul": "인", "element": "목", "yinyang": "양", "zodiac": "호랑이"},
-    {"index": 3, "hanja": "卯", "hangul": "묘", "element": "목", "yinyang": "음", "zodiac": "토끼"},
-    {"index": 4, "hanja": "辰", "hangul": "진", "element": "토", "yinyang": "양", "zodiac": "용"},
-    {"index": 5, "hanja": "巳", "hangul": "사", "element": "화", "yinyang": "음", "zodiac": "뱀"},
-    {"index": 6, "hanja": "午", "hangul": "오", "element": "화", "yinyang": "양", "zodiac": "말"},
-    {"index": 7, "hanja": "未", "hangul": "미", "element": "토", "yinyang": "음", "zodiac": "양"},
-    {"index": 8, "hanja": "申", "hangul": "신", "element": "금", "yinyang": "양", "zodiac": "원숭이"},
-    {"index": 9, "hanja": "酉", "hangul": "유", "element": "금", "yinyang": "음", "zodiac": "닭"},
-    {"index": 10, "hanja": "戌", "hangul": "술", "element": "토", "yinyang": "양", "zodiac": "개"},
-    {"index": 11, "hanja": "亥", "hangul": "해", "element": "수", "yinyang": "양", "zodiac": "돼지"},
-]
-
-EARTHLY_BY_HANJA = {b["hanja"]: b for b in EARTHLY_BRANCHES}
-EARTHLY_BY_INDEX = {b["index"]: b for b in EARTHLY_BRANCHES}
-
-# ── 오행 순환 ──
-ELEMENT_CYCLE = ["목", "화", "토", "금", "수"]
-ELEMENT_INDEX = {e: i for i, e in enumerate(ELEMENT_CYCLE)}
-
-
-def get_generated(element: str) -> str:
-    """상생: 내가 낳는 것"""
-    return ELEMENT_CYCLE[(ELEMENT_INDEX[element] + 1) % 5]
-
-
-def get_generator(element: str) -> str:
-    """피생: 나를 낳아주는 것"""
-    return ELEMENT_CYCLE[(ELEMENT_INDEX[element] - 1) % 5]
-
-
-def get_controlled(element: str) -> str:
-    """상극: 내가 제어하는 것"""
-    return ELEMENT_CYCLE[(ELEMENT_INDEX[element] + 2) % 5]
-
-
-def get_controller(element: str) -> str:
-    """피극: 나를 제어하는 것"""
-    return ELEMENT_CYCLE[(ELEMENT_INDEX[element] - 2) % 5]
+# ── sync alias (기존 import 호환) ──
+HEAVENLY_STEMS = get_heavenly_sync
+HEAVENLY_BY_HANJA = get_heavenly_by_hanja_sync
+HEAVENLY_BY_INDEX = get_heavenly_by_index_sync
+EARTHLY_BRANCHES = get_earthly_sync
+EARTHLY_BY_HANJA = get_earthly_by_hanja_sync
+EARTHLY_BY_INDEX = get_earthly_by_index_sync
 
 
 # ── 십신 ──
@@ -71,8 +33,9 @@ def get_controller(element: str) -> str:
 
 def get_sibsin(day_stem_hanja: str, target_stem_hanja: str) -> str:
     """십신(十神) 계산 — 천간 vs 천간"""
-    day = HEAVENLY_BY_HANJA[day_stem_hanja]
-    target = HEAVENLY_BY_HANJA[target_stem_hanja]
+    heavenly = HEAVENLY_BY_HANJA()
+    day = heavenly[day_stem_hanja]
+    target = heavenly[target_stem_hanja]
 
     same_element = day["element"] == target["element"]
     same_yinyang = day["yinyang"] == target["yinyang"]
@@ -92,8 +55,10 @@ def get_sibsin(day_stem_hanja: str, target_stem_hanja: str) -> str:
 
 def get_sibsin_for_branch(day_stem_hanja: str, branch_hanja: str) -> str:
     """십신 계산 — 일간 vs 지지 (지지의 오행 기준)"""
-    day = HEAVENLY_BY_HANJA[day_stem_hanja]
-    branch = EARTHLY_BY_HANJA[branch_hanja]
+    heavenly = HEAVENLY_BY_HANJA()
+    earthly = EARTHLY_BY_HANJA()
+    day = heavenly[day_stem_hanja]
+    branch = earthly[branch_hanja]
 
     same_element = day["element"] == branch["element"]
     same_yinyang = day["yinyang"] == branch["yinyang"]
@@ -130,10 +95,11 @@ def get_siju_stem(day_stem_index: int, branch_index: int) -> int:
 
 
 def calculate_saju_from_calenda(calenda_row: dict, hour: int, minute: int):
-    """
-    만세력 DB 로우 + 시간 → 사주 계산
-    (sync 버전 — 기존 코드 호환용)
-    """
+    """만세력 DB 로우 + 시간 → 사주 계산"""
+    heavenly_by_hanja = HEAVENLY_BY_HANJA()
+    heavenly_by_index = HEAVENLY_BY_INDEX()
+    earthly_by_index = EARTHLY_BY_INDEX()
+
     yeonju_hanja = calenda_row.get("cd_hyganjee", "")
     wolju_hanja = calenda_row.get("cd_hmganjee", "")
     ilju_hanja = calenda_row.get("cd_hdganjee", "")
@@ -144,11 +110,11 @@ def calculate_saju_from_calenda(calenda_row: dict, hour: int, minute: int):
     day_stem_hanja = ilju_hanja[0]
 
     branch_idx = get_branch_by_hour(hour, minute)
-    day_stem_idx = next(s["index"] for s in HEAVENLY_STEMS if s["hanja"] == day_stem_hanja)
-    siju_stem_idx = get_siju_stem(day_stem_idx, branch_idx)
+    day_stem_info = heavenly_by_hanja[day_stem_hanja]
+    siju_stem_idx = get_siju_stem(day_stem_info["index"], branch_idx)
 
-    siju_hanja = HEAVENLY_BY_INDEX[siju_stem_idx]["hanja"] + EARTHLY_BY_INDEX[branch_idx]["hanja"]
-    siju_hangul = HEAVENLY_BY_INDEX[siju_stem_idx]["hangul"] + EARTHLY_BY_INDEX[branch_idx]["hangul"]
+    siju_hanja = heavenly_by_index[siju_stem_idx]["hanja"] + earthly_by_index[branch_idx]["hanja"]
+    siju_hangul = heavenly_by_index[siju_stem_idx]["hangul"] + earthly_by_index[branch_idx]["hangul"]
 
     pillars = {
         "yeonju": {"hanja": yeonju_hanja, "hangul": yeonju_hangul},
@@ -195,7 +161,10 @@ def calculate_saju_from_calenda(calenda_row: dict, hour: int, minute: int):
 
 
 def calc_compatibility(saju_a: dict, saju_b: dict) -> dict:
-    """두 사람의 사주 데이터로 궁합 점수와 해설 계산 (sync)"""
+    """두 사람의 사주 데이터로 궁합 점수와 해설 계산"""
+    heavenly_by_hanja = HEAVENLY_BY_HANJA()
+    earthly_by_hanja = EARTHLY_BY_HANJA()
+
     def _get_pillar(saju, key):
         hanja = saju.get("hanja", {}) if isinstance(saju.get("hanja"), dict) else {}
         return hanja.get(key, "")
@@ -220,10 +189,10 @@ def calc_compatibility(saju_a: dict, saju_b: dict) -> dict:
     day_branch_a = _get_day_branch(saju_a)
     day_branch_b = _get_day_branch(saju_b)
 
-    stem_info_a = HEAVENLY_BY_HANJA.get(day_stem_a, {})
-    stem_info_b = HEAVENLY_BY_HANJA.get(day_stem_b, {})
-    branch_info_a = EARTHLY_BY_HANJA.get(day_branch_a, {})
-    branch_info_b = EARTHLY_BY_HANJA.get(day_branch_b, {})
+    stem_info_a = heavenly_by_hanja.get(day_stem_a, {})
+    stem_info_b = heavenly_by_hanja.get(day_stem_b, {})
+    branch_info_a = earthly_by_hanja.get(day_branch_a, {})
+    branch_info_b = earthly_by_hanja.get(day_branch_b, {})
 
     stem_elem_a = stem_info_a.get("element", "")
     stem_elem_b = stem_info_b.get("element", "")
