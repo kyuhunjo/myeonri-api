@@ -31,12 +31,12 @@ async def load_heavenly_stems() -> list[dict]:
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT idx, hanja, hangul, element, yinyang FROM heavenly_stems ORDER BY idx"
+                "SELECT id, han_char, element, yin_yang, korean FROM heavenly_stems ORDER BY id"
             )
             rows = await cur.fetchall()
 
     _heavenly_stems = [
-        {"index": r[0], "hanja": r[1], "hangul": r[2], "element": r[3], "yinyang": r[4]}
+        {"index": r[0] - 1, "hanja": r[1], "hangul": r[4], "element": r[2], "yinyang": r[3]}
         for r in rows
     ]
     _heavenly_by_hanja = {s["hanja"]: s for s in _heavenly_stems}
@@ -56,12 +56,12 @@ async def load_earthly_branches() -> list[dict]:
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
             await cur.execute(
-                "SELECT idx, hanja, hangul, element, yinyang, zodiac FROM earthly_branches ORDER BY idx"
+                "SELECT id, han_char, element, yin_yang, korean FROM earthly_branches ORDER BY id"
             )
             rows = await cur.fetchall()
 
     _earthly_branches = [
-        {"index": r[0], "hanja": r[1], "hangul": r[2], "element": r[3], "yinyang": r[4], "zodiac": r[5]}
+        {"index": r[0] - 1, "hanja": r[1], "hangul": r[4], "element": r[2], "yinyang": r[3], "zodiac": ""}
         for r in rows
     ]
     _earthly_by_hanja = {b["hanja"]: b for b in _earthly_branches}
