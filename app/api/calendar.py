@@ -51,7 +51,7 @@ async def get_calendar_month(req: CalendarRequest):
         hdganjee = item.get("hdganjee", "")
         if hdganjee and len(hdganjee) >= 2:
             branch_hanja = hdganjee[1]  # 지지 한자 (예: 亥)
-            branch_info = EARTHLY_BY_HANJA.get(branch_hanja)
+            branch_info = EARTHLY_BY_HANJA().get(branch_hanja)
             if branch_info:
                 item["day_ddi"] = branch_info.get("zodiac", "")
                 item["day_branch_hanja"] = branch_info.get("hanja", "")

@@ -93,7 +93,7 @@ async def _stream_daily_groq(saju: dict) -> AsyncGenerator[str, None]:
     today_stem_kr = stems_hanja_to_kr.get(today_stem_hanja, "")
     today_stem_elem = elements_map.get(today_stem_kr, "")
     today_branch_kr = branches_hanja_to_kr.get(today_branch_hanja, "")
-    branch_elem = EARTHLY_BY_HANJA.get(today_branch_hanja, {}).get("element", "") if today_branch_hanja else ""
+    branch_elem = EARTHLY_BY_HANJA().get(today_branch_hanja, {}).get("element", "") if today_branch_hanja else ""
 
     stem_sibsin = ""
     branch_sibsin = ""
