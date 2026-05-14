@@ -127,7 +127,7 @@ async def consult_personality(req: PersonalityRequest):
     _req = _Req()
 
     return StreamingResponse(
-        _sg(saju, _req, override_system=PERSONALITY_SYSTEM_PROMPT, override_prompt=prompt),
+        _sg(saju, _req, override_system=PERSONALITY_SYSTEM_PROMPT, override_prompt=prompt, override_temperature=0.1),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

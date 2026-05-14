@@ -136,9 +136,10 @@ async def consult_analyze(req: ConsultRequest):
     }
 
 
-async def _stream_groq(saju: dict, req: ConsultRequest, override_system: str = None, override_prompt: str = None) -> AsyncGenerator[str, None]:
+async def _stream_groq(saju: dict, req: ConsultRequest, override_system: str = None, override_prompt: str = None, override_temperature: float = None) -> AsyncGenerator[str, None]:
     """Groq 스트리밍 응답을 SSE 형식으로 변환 (override 파라미터 지원)"""
     system_prompt = override_system or SYSTEM_PROMPT
+    temperature = override_temperature if override_temperature is not None else 0.7
     
     if override_prompt:
         user_prompt = override_prompt
@@ -168,7 +169,7 @@ async def _stream_groq(saju: dict, req: ConsultRequest, override_system: str = N
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    "temperature": 0.7,
+                    "temperature": temperature,
                     "max_tokens": 2048,
                     "stream": True,
                 },

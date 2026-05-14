@@ -92,7 +92,7 @@ async def _stream_dimension(saju: dict, dimension: str) -> str:
         category = "custom"
         question = ""
 
-    return _sg(saju, _Req(), override_system=ctx["system"], override_prompt=user_prompt)
+    return _sg(saju, _Req(), override_system=ctx["system"], override_prompt=user_prompt, override_temperature=0.1)
 
 
 # 각 지표별 엔드포인트
