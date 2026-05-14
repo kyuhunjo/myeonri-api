@@ -136,12 +136,16 @@ async def consult_analyze(req: ConsultRequest):
     }
 
 
-async def _stream_groq(saju: dict, req: ConsultRequest) -> AsyncGenerator[str, None]:
-    """Groq 스트리밍 응답을 SSE 형식으로 변환"""
-    category_instruction = CATEGORY_PROMPTS.get(req.category.value, "")
-    extra_question = f"\n\n사용자의 추가 질문: {req.question}" if req.question else ""
-
-    user_prompt = f"""사주 정보: {json.dumps(saju, ensure_ascii=False, indent=2)}
+async def _stream_groq(saju: dict, req: ConsultRequest, override_system: str = None, override_prompt: str = None) -> AsyncGenerator[str, None]:
+    """Groq 스트리밍 응답을 SSE 형식으로 변환 (override 파라미터 지원)"""
+    system_prompt = override_system or SYSTEM_PROMPT
+    
+    if override_prompt:
+        user_prompt = override_prompt
+    else:
+        category_instruction = CATEGORY_PROMPTS.get(req.category.value, "")
+        extra_question = f"\n\n사용자의 추가 질문: {req.question}" if req.question else ""
+        user_prompt = f"""사주 정보: {json.dumps(saju, ensure_ascii=False, indent=2)}
 
 상담 주제: {category_instruction}{extra_question}
 
@@ -161,7 +165,7 @@ async def _stream_groq(saju: dict, req: ConsultRequest) -> AsyncGenerator[str, N
                 json={
                     "model": settings.GROQ_MODEL,
                     "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
                     "temperature": 0.7,
