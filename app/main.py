@@ -6,7 +6,7 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import saju, user, consult, calendar, logs, rbac, auth_google, daily, compatibility, profile, history, influence, mbti, personality
+from app.api import saju, user, consult, calendar, logs, rbac, auth_google, daily, compatibility, profile, influence, mbti, personality
 from app.core.config import settings
 from app.core.database import get_pool, close_pool
 from app.core.auth import APIKeyMiddleware
@@ -57,7 +57,6 @@ app.include_router(influence.router)
 app.include_router(mbti.router)
 app.include_router(personality.router)
 app.include_router(profile.router)
-app.include_router(history.router)
 app.include_router(calendar.router)
 app.include_router(logs.router)
 app.include_router(rbac.router)
