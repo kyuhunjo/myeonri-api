@@ -61,8 +61,10 @@ class ConsultRequest(BaseModel):
     category: ConsultCategory = Field(default="custom")
     question: str = ""
     saju_result: dict | None = None
+    temperature: float | None = None
 
 
+temperature: float | None = None
 async def _get_saju_data(req: ConsultRequest) -> dict:
     """사주 데이터 조회 (saju_profiles 테이블)"""
     saju = req.saju_result
@@ -206,7 +208,7 @@ async def consult_analyze_stream(req: ConsultRequest):
         raise HTTPException(status_code=500, detail="Groq API 키가 설정되지 않았습니다")
 
     return StreamingResponse(
-        _stream_groq(saju, req),
+        _stream_groq(saju, req, override_temperature=req.temperature),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

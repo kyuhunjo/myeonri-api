@@ -35,9 +35,14 @@ class DailyFortuneRequest(BaseModel):
     saju_result: dict | None = None
     today_data: dict | None = None
     current_daeun: dict | None = None
+    temperature: float | None = None
+    google_id: str
+    saju_result: dict | None = None
+    today_data: dict | None = None
+    current_daeun: dict | None = None
 
 
-async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current_daeun: dict | None = None) -> AsyncGenerator[str, None]:
+async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current_daeun: dict | None = None, temperature: float | None = None) -> AsyncGenerator[str, None]:
     from datetime import datetime, timezone
     import datetime as dt
 
@@ -207,7 +212,7 @@ async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": user_prompt},
                     ],
-                    "temperature": 0.7,
+                    "temperature": temperature if temperature is not None else 0.7,
                     "max_tokens": 2048,
                     "stream": True,
                 },
@@ -261,7 +266,7 @@ async def consult_daily(req: DailyFortuneRequest):
         raise HTTPException(status_code=500, detail="Groq API 키가 설정되지 않았습니다")
 
     return StreamingResponse(
-        _stream_daily_groq(saju, req.today_data, req.current_daeun),
+        _stream_daily_groq(saju, req.today_data, req.current_daeun, req.temperature),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
