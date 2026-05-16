@@ -37,6 +37,23 @@ class DailyFortuneRequest(BaseModel):
     current_daeun: dict | None = None
 
 
+# 천간/지지 한글→한자 매핑 (DB에 월주가 한글로 저장된 케이스 대비)
+KR_TO_HANJA_STEM = {"갑":"甲","을":"乙","병":"丙","정":"丁","무":"戊","기":"己","경":"庚","신":"辛","임":"壬","계":"癸"}
+KR_TO_HANJA_BRANCH = {"자":"子","축":"丑","인":"寅","묘":"卯","진":"辰","사":"巳","오":"午","미":"未","신":"申","유":"酉","술":"戌","해":"亥"}
+
+def _to_hanja_ganji(ganji: str) -> str:
+    """간지를 한글→한자 변환 ("병오" → "丙午")"""
+    if not ganji or len(ganji) < 2:
+        return ganji
+    first = ganji[0]
+    second = ganji[1]
+    if first in KR_TO_HANJA_STEM:
+        first = KR_TO_HANJA_STEM[first]
+    if second in KR_TO_HANJA_BRANCH:
+        second = KR_TO_HANJA_BRANCH[second]
+    return first + second
+
+
 async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current_daeun: dict | None = None) -> AsyncGenerator[str, None]:
     """오늘의 운세 Groq 스트리밍 (대운 + 년운/월운 + 일진 통합)"""
     from datetime import datetime, timezone
@@ -77,6 +94,12 @@ async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current
         yield "data: [DONE]\n\n"
         return
 
+    # 한글 간지를 한자로 변환 (DB에 섞여있을 수 있음)
+    hd_ganjee = _to_hanja_ganji(iljin.get("hdganjee", ""))
+    kd_ganjee = _to_hanja_ganji(iljin.get("kdganjee", ""))
+    hy_ganjee = _to_hanja_ganji(iljin.get("hyganjee", ""))
+    ky_ganjee = _to_hanja_ganji(iljin.get("kyganjee", ""))
+
     hanja_pillars = saju.get("hanja", {}) if isinstance(saju.get("hanja"), dict) else {}
     ilju = hanja_pillars.get("ilju", "")
     day_stem_hanja = ilju[0] if ilju and len(ilju) >= 1 else ""
@@ -88,10 +111,8 @@ async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current
     day_stem_kr = stems_hanja_to_kr.get(day_stem_hanja, "")
     day_stem_elem = elements_map.get(day_stem_kr, "")
 
-    hd = iljin.get("hdganjee", "")
-    kd = iljin.get("kdganjee", "")
-    today_stem_hanja = hd[0] if hd and len(hd) >= 1 else ""
-    today_branch_hanja = hd[1] if hd and len(hd) >= 2 else ""
+    today_stem_hanja = hd_ganjee[0] if hd_ganjee and len(hd_ganjee) >= 1 else ""
+    today_branch_hanja = hd_ganjee[1] if hd_ganjee and len(hd_ganjee) >= 2 else ""
     today_stem_kr = stems_hanja_to_kr.get(today_stem_hanja, "")
     today_stem_elem = elements_map.get(today_stem_kr, "")
     today_branch_kr = branches_hanja_to_kr.get(today_branch_hanja, "")
@@ -104,12 +125,11 @@ async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current
     if day_stem_hanja and today_branch_hanja:
         branch_sibsin = get_sibsin_for_branch(day_stem_hanja, today_branch_hanja)
 
-    # ── 년주/월주 정보 (today_data 또는 iljin에서) ──
-    # hyganjee = 년주간지, kyganjee = 월주간지
-    year_stem_hanja = iljin.get("hyganjee", "")[:1] if iljin.get("hyganjee", "") else ""
-    year_branch_hanja = iljin.get("hyganjee", "")[1:] if len(iljin.get("hyganjee", "")) >= 2 else ""
-    month_stem_hanja = iljin.get("kyganjee", "")[:1] if iljin.get("kyganjee", "") else ""
-    month_branch_hanja = iljin.get("kyganjee", "")[1:] if len(iljin.get("kyganjee", "")) >= 2 else ""
+    # ── 년주/월주 정보 (한자로 변환된 값 사용) ──
+    year_stem_hanja = hy_ganjee[0] if hy_ganjee and len(hy_ganjee) >= 1 else ""
+    year_branch_hanja = hy_ganjee[1:] if hy_ganjee and len(hy_ganjee) >= 2 else ""
+    month_stem_hanja = ky_ganjee[0] if ky_ganjee and len(ky_ganjee) >= 1 else ""
+    month_branch_hanja = ky_ganjee[1:] if ky_ganjee and len(ky_ganjee) >= 2 else ""
 
     year_stem_kr = stems_hanja_to_kr.get(year_stem_hanja, "")
     year_branch_kr = branches_hanja_to_kr.get(year_branch_hanja, "")
@@ -130,10 +150,9 @@ async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current
         if dg:
             daeun_str = f"{dg} (십신: {ds}/{db}, {start}~{end}세)"
 
-    # ── 년운/월운 간지 계산 (세운/월운) ──
-    # 세운 간지
-    seyun_ganzi = iljin.get("hyganjee", "")  # 년주간지 = 세운
-    wolun_ganzi = iljin.get("kyganjee", "")  # 월주간지 = 월운
+    # 년운/월운 간지
+    seyun_ganzi = hy_ganjee  # 세운
+    wolun_ganzi = ky_ganjee  # 월운
 
     # ── 메타 전송 ──
     meta = {
@@ -150,7 +169,7 @@ async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current
     }
     yield f"data: {json.dumps({'meta': meta})}\n\n"
 
-    # ── 오행 관계 분석 (년주/월주/일진과 일간의 관계) ──
+    # ── 십신 관계 분석 ──
     year_stem_sibsin = get_sibsin(day_stem_hanja, year_stem_hanja) if day_stem_hanja and year_stem_hanja else ""
     year_branch_sibsin = get_sibsin_for_branch(day_stem_hanja, year_branch_hanja) if day_stem_hanja and year_branch_hanja else ""
     month_stem_sibsin = get_sibsin(day_stem_hanja, month_stem_hanja) if day_stem_hanja and month_stem_hanja else ""
@@ -160,7 +179,7 @@ async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current
 일간: {day_stem_hanja}({day_stem_kr}) · 오행: {day_stem_elem}
 
 [현재 대운]
-{seyun_ganzi}년 현재 대운: {daeun_str}
+{year}년 현재 대운: {daeun_str}
 
 [년운 - {year}년]
 년주: {seyun_ganzi}
@@ -173,7 +192,7 @@ async def _stream_daily_groq(saju: dict, today_data: dict | None = None, current
 지지: {month_branch_hanja}({month_branch_kr}) → 나와의 관계: {month_branch_sibsin}
 
 [오늘의 일진 - {year}년 {month}월 {day}일 {weekday_str}]
-일진: {hd}({kd})
+일진: {hd_ganjee}({kd_ganjee})
 천간: {today_stem_hanja}({today_stem_kr}) · 오행: {today_stem_elem} → 나와의 관계: {stem_sibsin}
 지지: {today_branch_hanja}({today_branch_kr}) · 오행: {branch_elem} → 나와의 관계: {branch_sibsin}
 음력: {iljin.get('lm','')}월 {iljin.get('ld','')}일
