@@ -42,6 +42,7 @@ class DiaryWriteRequest(BaseModel):
     google_id: str = ""
     content: str
     tags: list[str] = Field(default_factory=list)
+    analysis_result: str = ""
     saju_result: dict | None = None
 
 
@@ -304,6 +305,7 @@ async def diary_save(req: DiaryWriteRequest):
         }
 
     tags_json = json.dumps(req.tags, ensure_ascii=False)
+    analysis_json = json.dumps(req.analysis_result, ensure_ascii=False) if req.analysis_result else None
     saju_snapshot_json = json.dumps(saju, ensure_ascii=False) if saju else None
     today_data_json = json.dumps(today_data, ensure_ascii=False) if today_data else None
 
@@ -311,9 +313,9 @@ async def diary_save(req: DiaryWriteRequest):
         async with conn.cursor() as cur:
             await cur.execute(
                 "INSERT INTO saju_diaries "
-                "(user_id, content, tags, saju_snapshot, today_data, created_date) "
-                "VALUES (%s, %s, %s, %s, %s, %s)",
-                (user_id, req.content.strip(), tags_json,
+                "(user_id, content, analysis_result, tags, saju_snapshot, today_data, created_date) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (user_id, req.content.strip(), analysis_json, tags_json,
                  saju_snapshot_json, today_data_json, kst_now.date()),
             )
             diary_id = cur.lastrowid
