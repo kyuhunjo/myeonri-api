@@ -61,7 +61,7 @@ class DiaryDeleteRequest(BaseModel):
 class DiaryResponse(BaseModel):
     id: int
     content: str
-    analysis_result: dict | None
+    analysis_result: str | dict | None
     tags: list[str]
     created_date: str
     created_at: str
@@ -305,7 +305,13 @@ async def diary_save(req: DiaryWriteRequest):
         }
 
     tags_json = json.dumps(req.tags, ensure_ascii=False)
-    analysis_json = json.dumps(req.analysis_result, ensure_ascii=False) if req.analysis_result else None
+    # analysis_result: 문자열이면 그냥 저장, dict/json이면 json.dumps
+    if isinstance(req.analysis_result, str):
+        analysis_json = req.analysis_result.strip() if req.analysis_result else None
+    elif req.analysis_result:
+        analysis_json = json.dumps(req.analysis_result, ensure_ascii=False)
+    else:
+        analysis_json = None
     saju_snapshot_json = json.dumps(saju, ensure_ascii=False) if saju else None
     today_data_json = json.dumps(today_data, ensure_ascii=False) if today_data else None
 
