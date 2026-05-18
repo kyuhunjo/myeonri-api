@@ -6,7 +6,8 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import saju, user, consult, calendar, logs, rbac, auth_google, daily, compatibility, profile, influence, mbti, personality
+<<<<<<< HEAD
+from app.api import saju, user, consult, calendar, logs, rbac, auth_google, daily, compatibility, profile, history, influence, mbti, personality, diary
 from app.core.config import settings
 from app.core.database import get_pool, close_pool
 from app.core.auth import APIKeyMiddleware
@@ -60,6 +61,7 @@ app.include_router(profile.router)
 app.include_router(calendar.router)
 app.include_router(logs.router)
 app.include_router(rbac.router)
+app.include_router(diary.router)
 
 
 @app.on_event("startup")
