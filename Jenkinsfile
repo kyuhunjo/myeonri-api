@@ -10,10 +10,21 @@ pipeline {
     }
 
     stages {
+        stage('Detect Branch') {
+            steps {
+                script {
+                    // Git 브랜치명 알아내기
+                    def branchName = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    echo "Current branch: ${branchName}"
+                    env.GIT_BRANCH = branchName
+                }
+            }
+        }
+
         stage('Build & Deploy') {
             steps {
                 script {
-                    def branch = env.BRANCH_NAME
+                    def branch = env.GIT_BRANCH
                     def isMain = branch == 'main'
                     def namespace = isMain ? 'default' : 'dev'
                     def feDir = isMain ? env.FE_MAIN_DIR : env.FE_DEV_DIR
@@ -21,7 +32,6 @@ pipeline {
                     def feImage = isMain ? 'myeonri:latest' : 'myeonri:dev'
                     def beImage = 'myeonri-api:latest'
                     def buildMode = isMain ? 'production' : 'dev'
-                    def envFile = isMain ? '/opt/myeonri-build.env' : '/opt/myeonri-build-dev.env'
 
                     echo "=== Deploying ${branch} → ${namespace} ==="
 
