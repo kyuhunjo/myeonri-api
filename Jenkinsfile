@@ -34,6 +34,7 @@ pipeline {
                     def buildMode = isMain ? 'production' : 'dev'
                     def feDeploy = isMain ? 'myeonri' : 'myeonri-dev'
                     def beDeploy = isMain ? 'myeonri-api' : 'myeonri-api-dev'
+                    def envPath = isMain ? '/opt/myeonri-build.env' : '/opt/myeonri-build-dev.env'
 
                     echo "=== Deploying ${branch} → ${namespace} (FE:${feDeploy}, BE:${beDeploy}) ==="
 
@@ -47,6 +48,7 @@ pipeline {
                             git checkout -B ${branch} origin/${branch}
 
                             echo '=== [FE] Building ==='
+                            cp ${envPath} ${feDir}/.env 2>/dev/null || true
                             docker build --no-cache --build-arg VITE_MODE=${buildMode} -t ${feImage} .
                             docker save ${feImage} | ctr -n k8s.io image import -
 
