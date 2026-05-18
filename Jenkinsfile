@@ -13,10 +13,12 @@ pipeline {
         stage('Detect Branch') {
             steps {
                 script {
-                    // Git 브랜치명 알아내기
-                    def branchName = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    echo "Current branch: ${branchName}"
-                    env.GIT_BRANCH = branchName
+                    // GIT_BRANCH (e.g. origin/dev) 또는 CHANGE_BRANCH 시도
+                    def raw = env.GIT_BRANCH ?: env.BRANCH_NAME ?: sh(script: 'git name-rev --name-only HEAD 2>/dev/null || echo dev', returnStdout: true).trim()
+                    // "origin/dev" → "dev"
+                    def branch = raw.replaceAll('^origin/', '').replaceAll('^remotes/origin/', '')
+                    echo "Detected branch: ${branch} (raw: ${raw})"
+                    env.DEPLOY_BRANCH = branch
                 }
             }
         }
@@ -24,7 +26,7 @@ pipeline {
         stage('Build & Deploy') {
             steps {
                 script {
-                    def branch = env.GIT_BRANCH
+                    def branch = env.DEPLOY_BRANCH
                     def isMain = branch == 'main'
                     def namespace = isMain ? 'default' : 'dev'
                     def feDir = isMain ? env.FE_MAIN_DIR : env.FE_DEV_DIR
