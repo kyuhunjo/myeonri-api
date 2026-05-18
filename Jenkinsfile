@@ -13,11 +13,9 @@ pipeline {
         stage('Detect Branch') {
             steps {
                 script {
-                    // GIT_BRANCH (e.g. origin/dev) 또는 CHANGE_BRANCH 시도
                     def raw = env.GIT_BRANCH ?: env.BRANCH_NAME ?: sh(script: 'git name-rev --name-only HEAD 2>/dev/null || echo dev', returnStdout: true).trim()
-                    // "origin/dev" → "dev"
                     def branch = raw.replaceAll('^origin/', '').replaceAll('^remotes/origin/', '')
-                    echo "Detected branch: ${branch} (raw: ${raw})"
+                    echo "Detected branch: ${branch}"
                     env.DEPLOY_BRANCH = branch
                 }
             }
@@ -34,8 +32,10 @@ pipeline {
                     def feImage = isMain ? 'myeonri:latest' : 'myeonri:dev'
                     def beImage = 'myeonri-api:latest'
                     def buildMode = isMain ? 'production' : 'dev'
+                    def feDeploy = isMain ? 'myeonri' : 'myeonri-dev'
+                    def beDeploy = isMain ? 'myeonri-api' : 'myeonri-api-dev'
 
-                    echo "=== Deploying ${branch} → ${namespace} ==="
+                    echo "=== Deploying ${branch} → ${namespace} (FE:${feDeploy}, BE:${beDeploy}) ==="
 
                     sh """
                         ssh -o StrictHostKeyChecking=no root@${WORKER_HOST} "
@@ -60,10 +60,10 @@ pipeline {
                             docker save ${beImage} | ctr -n k8s.io image import -
 
                             echo '=== Deploying to ${namespace} ==='
-                            kubectl rollout restart deployment/myeonri -n ${namespace}
-                            kubectl rollout status deployment/myeonri -n ${namespace} --timeout=120s || true
-                            kubectl rollout restart deployment/myeonri-api -n ${namespace}
-                            kubectl rollout status deployment/myeonri-api -n ${namespace} --timeout=120s || true
+                            kubectl rollout restart deployment/${feDeploy} -n ${namespace}
+                            kubectl rollout status deployment/${feDeploy} -n ${namespace} --timeout=120s || true
+                            kubectl rollout restart deployment/${beDeploy} -n ${namespace}
+                            kubectl rollout status deployment/${beDeploy} -n ${namespace} --timeout=120s || true
 
                             echo '=== Done ==='
                         "
