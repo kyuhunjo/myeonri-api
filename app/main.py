@@ -6,7 +6,11 @@ import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import saju, user, consult, calendar, logs, rbac, auth_google, daily, compatibility, profile, influence, mbti, personality, diary
+import time
+
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.api import saju, user, consult, calendar, logs, rbac, auth_google, daily, compatibility, profile, influence, mbti, personality, diary, stats
 from app.core.config import settings
 from app.core.database import get_pool, close_pool
 from app.core.auth import APIKeyMiddleware
@@ -61,6 +65,7 @@ app.include_router(calendar.router)
 app.include_router(logs.router)
 app.include_router(rbac.router)
 app.include_router(diary.router)
+app.include_router(stats.router)
 
 
 @app.on_event("startup")
@@ -77,6 +82,48 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     await close_pool()
+
+
+# 접속 로깅 미들웨어
+@app.middleware("http")
+async def log_access(request: Request, call_next):
+    """모든 API 요청을 access_logs 테이블에 기록"""
+    start = time.time()
+
+    # 응답 처리 전에 요청 정보 읽기 (본문은 스트림이라 미리 읽지 않음)
+    path = request.url.path
+    method = request.method
+
+    response = await call_next(request)
+
+    duration_ms = int((time.time() - start) * 1000)
+
+    # 정적 파일, 헬스체크, docs 등은 기록하지 않음
+    if path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/redoc") or path == "/health":
+        return response
+
+    try:
+        # google_id 추출 (헤더나 쿼리 파라미터에서)
+        google_id = request.headers.get("x-google-id") or request.query_params.get("google_id") or request.query_params.get("admin_id")
+
+        ip = request.client.host if request.client else None
+        user_agent = request.headers.get("user-agent", "")[:500]
+        referer = request.headers.get("referer", "")[:500]
+        status = response.status_code
+
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    """INSERT INTO access_logs
+                       (google_id, ip, method, path, status, user_agent, referer, duration_ms)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (google_id, ip, method, path, status, user_agent, referer, duration_ms),
+                )
+    except Exception as e:
+        logger.warning(f"Failed to log access: {e}")
+
+    return response
 
 
 @app.get("/health")
