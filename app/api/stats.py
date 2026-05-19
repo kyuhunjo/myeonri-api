@@ -139,16 +139,16 @@ async def get_stats_summary(
                 SELECT
                     CASE
                         WHEN feature IS NOT NULL AND feature != '' THEN feature
-                        WHEN path LIKE '%/daily%' OR path LIKE '%/today%' THEN 'daily'
-                        WHEN path LIKE '%compatibility%' THEN 'compatibility'
-                        WHEN path LIKE '%/consult%' OR path LIKE '%/analyze%' THEN 'consult'
-                        WHEN path LIKE '%/diary%' THEN 'diary'
-                        WHEN path LIKE '%/mbti%' THEN 'mbti'
-                        WHEN path LIKE '%/personality%' THEN 'personality'
-                        WHEN path LIKE '%/influence%' THEN 'influence'
-                        WHEN path LIKE '%/saju%' OR path LIKE '%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
-                        WHEN path LIKE '%/user/%' OR path LIKE '%/profile%' THEN 'my'
-                        WHEN path LIKE '%/auth/%' THEN 'landing'
+                        WHEN path LIKE '%%/daily%' OR path LIKE '%%/today%' THEN 'daily'
+                        WHEN path LIKE '%%compatibility%' THEN 'compatibility'
+                        WHEN path LIKE '%%/consult%' OR path LIKE '%%/analyze%' THEN 'consult'
+                        WHEN path LIKE '%%/diary%' THEN 'diary'
+                        WHEN path LIKE '%%/mbti%' THEN 'mbti'
+                        WHEN path LIKE '%%/personality%' THEN 'personality'
+                        WHEN path LIKE '%%/influence%' THEN 'influence'
+                        WHEN path LIKE '%%/saju%' OR path LIKE '%%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE '%%/user/%' OR path LIKE '%%/profile%' THEN 'my'
+                        WHEN path LIKE '%%/auth/%' THEN 'landing'
                         WHEN path = '/health' THEN 'health'
                         ELSE 'other'
                     END as category,
@@ -252,16 +252,16 @@ async def get_feature_stats(
                 SELECT
                     CASE
                         WHEN feature IS NOT NULL AND feature != '' THEN feature
-                        WHEN path LIKE '%/daily%' OR path LIKE '%/today%' THEN 'daily'
-                        WHEN path LIKE '%compatibility%' THEN 'compatibility'
-                        WHEN path LIKE '%/consult%' OR path LIKE '%/analyze%' THEN 'consult'
-                        WHEN path LIKE '%/diary%' THEN 'diary'
-                        WHEN path LIKE '%/mbti%' THEN 'mbti'
-                        WHEN path LIKE '%/personality%' THEN 'personality'
-                        WHEN path LIKE '%/influence%' THEN 'influence'
-                        WHEN path LIKE '%/saju%' OR path LIKE '%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
-                        WHEN path LIKE '%/user/%' OR path LIKE '%/profile%' THEN 'my'
-                        WHEN path LIKE '%/auth/%' THEN 'landing'
+                        WHEN path LIKE '%%/daily%' OR path LIKE '%%/today%' THEN 'daily'
+                        WHEN path LIKE '%%compatibility%' THEN 'compatibility'
+                        WHEN path LIKE '%%/consult%' OR path LIKE '%%/analyze%' THEN 'consult'
+                        WHEN path LIKE '%%/diary%' THEN 'diary'
+                        WHEN path LIKE '%%/mbti%' THEN 'mbti'
+                        WHEN path LIKE '%%/personality%' THEN 'personality'
+                        WHEN path LIKE '%%/influence%' THEN 'influence'
+                        WHEN path LIKE '%%/saju%' OR path LIKE '%%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE '%%/user/%' OR path LIKE '%%/profile%' THEN 'my'
+                        WHEN path LIKE '%%/auth/%' THEN 'landing'
                         ELSE 'other'
                     END as category,
                     COUNT(*) as total_views,
@@ -279,16 +279,16 @@ async def get_feature_stats(
                     DATE(created_at) as date,
                     CASE
                         WHEN feature IS NOT NULL AND feature != '' THEN feature
-                        WHEN path LIKE '%/daily%' OR path LIKE '%/today%' THEN 'daily'
-                        WHEN path LIKE '%compatibility%' THEN 'compatibility'
-                        WHEN path LIKE '%/consult%' OR path LIKE '%/analyze%' THEN 'consult'
-                        WHEN path LIKE '%/diary%' THEN 'diary'
-                        WHEN path LIKE '%/mbti%' THEN 'mbti'
-                        WHEN path LIKE '%/personality%' THEN 'personality'
-                        WHEN path LIKE '%/influence%' THEN 'influence'
-                        WHEN path LIKE '%/saju%' OR path LIKE '%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
-                        WHEN path LIKE '%/user/%' OR path LIKE '%/profile%' THEN 'my'
-                        WHEN path LIKE '%/auth/%' THEN 'landing'
+                        WHEN path LIKE '%%/daily%' OR path LIKE '%%/today%' THEN 'daily'
+                        WHEN path LIKE '%%compatibility%' THEN 'compatibility'
+                        WHEN path LIKE '%%/consult%' OR path LIKE '%%/analyze%' THEN 'consult'
+                        WHEN path LIKE '%%/diary%' THEN 'diary'
+                        WHEN path LIKE '%%/mbti%' THEN 'mbti'
+                        WHEN path LIKE '%%/personality%' THEN 'personality'
+                        WHEN path LIKE '%%/influence%' THEN 'influence'
+                        WHEN path LIKE '%%/saju%' OR path LIKE '%%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE '%%/user/%' OR path LIKE '%%/profile%' THEN 'my'
+                        WHEN path LIKE '%%/auth/%' THEN 'landing'
                         ELSE 'other'
                     END as category,
                     COUNT(*) as cnt
