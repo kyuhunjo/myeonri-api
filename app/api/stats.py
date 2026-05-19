@@ -139,16 +139,16 @@ async def get_stats_summary(
                 SELECT
                     CASE
                         WHEN feature IS NOT NULL AND feature != '' THEN feature
-                        WHEN path LIKE CONCAT('%', 'daily', '%') OR path LIKE CONCAT('%', 'today', '%') THEN 'daily'
-                        WHEN path LIKE CONCAT('%', 'compatibility', '%') THEN 'compatibility'
-                        WHEN path LIKE CONCAT('%', 'consult', '%') OR path LIKE CONCAT('%', 'analyze', '%') THEN 'consult'
-                        WHEN path LIKE CONCAT('%', 'diary', '%') THEN 'diary'
-                        WHEN path LIKE CONCAT('%', 'mbti', '%') THEN 'mbti'
-                        WHEN path LIKE CONCAT('%', 'personality', '%') THEN 'personality'
-                        WHEN path LIKE CONCAT('%', 'influence', '%') THEN 'influence'
-                        WHEN path LIKE CONCAT('%', 'saju', '%') OR path LIKE CONCAT('%', 'calendar', '%') OR path = '/saju/calculate' THEN 'analysis'
-                        WHEN path LIKE CONCAT('%', 'user/', '%') OR path LIKE CONCAT('%', 'profile', '%') THEN 'my'
-                        WHEN path LIKE CONCAT('%', 'auth/', '%') THEN 'landing'
+                        WHEN path LIKE CONCAT(CHAR(37), 'daily', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'today', CHAR(37)) THEN 'daily'
+                        WHEN path LIKE CONCAT(CHAR(37), 'compatibility', CHAR(37)) THEN 'compatibility'
+                        WHEN path LIKE CONCAT(CHAR(37), 'consult', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'analyze', CHAR(37)) THEN 'consult'
+                        WHEN path LIKE CONCAT(CHAR(37), 'diary', CHAR(37)) THEN 'diary'
+                        WHEN path LIKE CONCAT(CHAR(37), 'mbti', CHAR(37)) THEN 'mbti'
+                        WHEN path LIKE CONCAT(CHAR(37), 'personality', CHAR(37)) THEN 'personality'
+                        WHEN path LIKE CONCAT(CHAR(37), 'influence', CHAR(37)) THEN 'influence'
+                        WHEN path LIKE CONCAT(CHAR(37), 'saju', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'calendar', CHAR(37)) OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE CONCAT(CHAR(37), 'user/', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'profile', CHAR(37)) THEN 'my'
+                        WHEN path LIKE CONCAT(CHAR(37), 'auth/', CHAR(37)) THEN 'landing'
                         WHEN path = '/health' THEN 'health'
                         ELSE 'other'
                     END as category,
@@ -261,16 +261,16 @@ async def get_feature_stats(
                 SELECT
                     CASE
                         WHEN feature IS NOT NULL AND feature != '' THEN feature
-                        WHEN path LIKE CONCAT('%', 'daily', '%') OR path LIKE CONCAT('%', 'today', '%') THEN 'daily'
-                        WHEN path LIKE CONCAT('%', 'compatibility', '%') THEN 'compatibility'
-                        WHEN path LIKE CONCAT('%', 'consult', '%') OR path LIKE CONCAT('%', 'analyze', '%') THEN 'consult'
-                        WHEN path LIKE CONCAT('%', 'diary', '%') THEN 'diary'
-                        WHEN path LIKE CONCAT('%', 'mbti', '%') THEN 'mbti'
-                        WHEN path LIKE CONCAT('%', 'personality', '%') THEN 'personality'
-                        WHEN path LIKE CONCAT('%', 'influence', '%') THEN 'influence'
-                        WHEN path LIKE CONCAT('%', 'saju', '%') OR path LIKE CONCAT('%', 'calendar', '%') OR path = '/saju/calculate' THEN 'analysis'
-                        WHEN path LIKE CONCAT('%', 'user/', '%') OR path LIKE CONCAT('%', 'profile', '%') THEN 'my'
-                        WHEN path LIKE CONCAT('%', 'auth/', '%') THEN 'landing'
+                        WHEN path LIKE CONCAT(CHAR(37), 'daily', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'today', CHAR(37)) THEN 'daily'
+                        WHEN path LIKE CONCAT(CHAR(37), 'compatibility', CHAR(37)) THEN 'compatibility'
+                        WHEN path LIKE CONCAT(CHAR(37), 'consult', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'analyze', CHAR(37)) THEN 'consult'
+                        WHEN path LIKE CONCAT(CHAR(37), 'diary', CHAR(37)) THEN 'diary'
+                        WHEN path LIKE CONCAT(CHAR(37), 'mbti', CHAR(37)) THEN 'mbti'
+                        WHEN path LIKE CONCAT(CHAR(37), 'personality', CHAR(37)) THEN 'personality'
+                        WHEN path LIKE CONCAT(CHAR(37), 'influence', CHAR(37)) THEN 'influence'
+                        WHEN path LIKE CONCAT(CHAR(37), 'saju', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'calendar', CHAR(37)) OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE CONCAT(CHAR(37), 'user/', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'profile', CHAR(37)) THEN 'my'
+                        WHEN path LIKE CONCAT(CHAR(37), 'auth/', CHAR(37)) THEN 'landing'
                         ELSE 'other'
                     END as category,
                     COUNT(*) as total_views,
@@ -288,16 +288,16 @@ async def get_feature_stats(
                     DATE(created_at) as date,
                     CASE
                         WHEN feature IS NOT NULL AND feature != '' THEN feature
-                        WHEN path LIKE CONCAT('%', 'daily', '%') OR path LIKE CONCAT('%', 'today', '%') THEN 'daily'
-                        WHEN path LIKE CONCAT('%', 'compatibility', '%') THEN 'compatibility'
-                        WHEN path LIKE CONCAT('%', 'consult', '%') OR path LIKE CONCAT('%', 'analyze', '%') THEN 'consult'
-                        WHEN path LIKE CONCAT('%', 'diary', '%') THEN 'diary'
-                        WHEN path LIKE CONCAT('%', 'mbti', '%') THEN 'mbti'
-                        WHEN path LIKE CONCAT('%', 'personality', '%') THEN 'personality'
-                        WHEN path LIKE CONCAT('%', 'influence', '%') THEN 'influence'
-                        WHEN path LIKE CONCAT('%', 'saju', '%') OR path LIKE CONCAT('%', 'calendar', '%') OR path = '/saju/calculate' THEN 'analysis'
-                        WHEN path LIKE CONCAT('%', 'user/', '%') OR path LIKE CONCAT('%', 'profile', '%') THEN 'my'
-                        WHEN path LIKE CONCAT('%', 'auth/', '%') THEN 'landing'
+                        WHEN path LIKE CONCAT(CHAR(37), 'daily', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'today', CHAR(37)) THEN 'daily'
+                        WHEN path LIKE CONCAT(CHAR(37), 'compatibility', CHAR(37)) THEN 'compatibility'
+                        WHEN path LIKE CONCAT(CHAR(37), 'consult', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'analyze', CHAR(37)) THEN 'consult'
+                        WHEN path LIKE CONCAT(CHAR(37), 'diary', CHAR(37)) THEN 'diary'
+                        WHEN path LIKE CONCAT(CHAR(37), 'mbti', CHAR(37)) THEN 'mbti'
+                        WHEN path LIKE CONCAT(CHAR(37), 'personality', CHAR(37)) THEN 'personality'
+                        WHEN path LIKE CONCAT(CHAR(37), 'influence', CHAR(37)) THEN 'influence'
+                        WHEN path LIKE CONCAT(CHAR(37), 'saju', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'calendar', CHAR(37)) OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE CONCAT(CHAR(37), 'user/', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'profile', CHAR(37)) THEN 'my'
+                        WHEN path LIKE CONCAT(CHAR(37), 'auth/', CHAR(37)) THEN 'landing'
                         ELSE 'other'
                     END as category,
                     COUNT(*) as cnt
