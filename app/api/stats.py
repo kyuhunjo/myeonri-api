@@ -192,14 +192,25 @@ async def get_daily_stats(
                     DATE(al.created_at) as date,
                     COUNT(*) as visits,
                     COUNT(DISTINCT al.google_id) as unique_users,
-                    COUNT(DISTINCT al.session_id) as sessions,
-                    (SELECT COUNT(*) FROM users WHERE DATE(created_at) = DATE(al.created_at)) as new_users
+                    COUNT(DISTINCT al.session_id) as sessions
                 FROM access_logs al
                 WHERE al.created_at >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
                 GROUP BY DATE(al.created_at)
                 ORDER BY date DESC
             """, (days,))
             rows = await cur.fetchall()
+
+            # 신규 가입자 수 별도 조회
+            daily_new_users = {}
+            if rows:
+                dates = [r[0] for r in rows]
+                placeholders = ','.join(['%s'] * len(dates))
+                await cur.execute(
+                    f"SELECT DATE(created_at) as date, COUNT(*) as cnt FROM users WHERE DATE(created_at) IN ({placeholders}) GROUP BY DATE(created_at)",
+                    dates,
+                )
+                for r in await cur.fetchall():
+                    daily_new_users[str(r[0])] = r[1]
 
     return {
         "daily": [
@@ -208,7 +219,7 @@ async def get_daily_stats(
                 "pv": r[1],
                 "dau": r[2],
                 "sessions": r[3],
-                "new_users": r[4],
+                "new_users": daily_new_users.get(str(r[0]), 0),
             }
             for r in rows
         ]
