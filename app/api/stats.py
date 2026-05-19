@@ -157,7 +157,7 @@ async def get_stats_summary(
                 WHERE DATE(created_at) = CURDATE()
                 GROUP BY category
                 ORDER BY cnt DESC
-            """)
+            """, ())
             feature_rows = await cur.fetchall()
 
             return {
@@ -305,7 +305,7 @@ async def get_feature_stats(
                 WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
                 GROUP BY DATE(created_at), category
                 ORDER BY date ASC, cnt DESC
-            """)
+            """, ())
             trend_rows = await cur.fetchall()
 
             # 트렌드 데이터 구조화
