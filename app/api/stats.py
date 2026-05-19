@@ -203,7 +203,7 @@ async def get_daily_stats(
             # 신규 가입자 수 별도 조회
             daily_new_users = {}
             if rows:
-                dates = [r[0] for r in rows]
+                dates = [str(r[0]) for r in rows]
                 placeholders = ','.join(['%s'] * len(dates))
                 await cur.execute(
                     f"SELECT DATE(created_at) as date, COUNT(*) as cnt FROM users WHERE DATE(created_at) IN ({placeholders}) GROUP BY DATE(created_at)",
