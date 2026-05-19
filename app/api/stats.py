@@ -134,14 +134,28 @@ async def get_stats_summary(
             await cur.execute("SELECT COUNT(DISTINCT session_id) FROM access_logs WHERE DATE(created_at) = CURDATE() AND session_id IS NOT NULL")
             today_sessions = (await cur.fetchone())[0]
 
-            # 기능별 사용량 (오늘)
+            # 기능별 사용량 (오늘) — feature 컬럼 + path에서 추론
             await cur.execute("""
-                SELECT feature, COUNT(*) as cnt
+                SELECT
+                    CASE
+                        WHEN feature IS NOT NULL AND feature != '' THEN feature
+                        WHEN path LIKE '%/daily%' OR path LIKE '%/today%' THEN 'daily'
+                        WHEN path LIKE '%compatibility%' THEN 'compatibility'
+                        WHEN path LIKE '%/consult%' OR path LIKE '%/analyze%' THEN 'consult'
+                        WHEN path LIKE '%/diary%' THEN 'diary'
+                        WHEN path LIKE '%/mbti%' THEN 'mbti'
+                        WHEN path LIKE '%/personality%' THEN 'personality'
+                        WHEN path LIKE '%/influence%' THEN 'influence'
+                        WHEN path LIKE '%/saju%' OR path LIKE '%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE '%/user/%' OR path LIKE '%/profile%' THEN 'my'
+                        WHEN path LIKE '%/auth/%' THEN 'landing'
+                        WHEN path = '/health' THEN 'health'
+                        ELSE 'other'
+                    END as category,
+                    COUNT(*) as cnt
                 FROM access_logs
                 WHERE DATE(created_at) = CURDATE()
-                  AND feature IS NOT NULL
-                  AND feature != ''
-                GROUP BY feature
+                GROUP BY category
                 ORDER BY cnt DESC
             """)
             feature_rows = await cur.fetchall()
@@ -224,37 +238,63 @@ async def get_feature_stats(
         "my": "마이페이지",
         "today": "오늘",
         "saju": "사주 입력",
-        "other": "다른 사람 사주",
+        "other": "기타",
+        "landing": "랜딩페이지",
+        "consult": "AI 상담",
+        "admin": "관리자",
+        "health": "상태 확인",
     }
 
     async with pool.acquire() as conn:
         async with conn.cursor() as cur:
-            # 기능별 총 사용량
+            # 기능별 총 사용량 (feature 컬럼 + path 추론)
             await cur.execute("""
                 SELECT
-                    feature,
+                    CASE
+                        WHEN feature IS NOT NULL AND feature != '' THEN feature
+                        WHEN path LIKE '%/daily%' OR path LIKE '%/today%' THEN 'daily'
+                        WHEN path LIKE '%compatibility%' THEN 'compatibility'
+                        WHEN path LIKE '%/consult%' OR path LIKE '%/analyze%' THEN 'consult'
+                        WHEN path LIKE '%/diary%' THEN 'diary'
+                        WHEN path LIKE '%/mbti%' THEN 'mbti'
+                        WHEN path LIKE '%/personality%' THEN 'personality'
+                        WHEN path LIKE '%/influence%' THEN 'influence'
+                        WHEN path LIKE '%/saju%' OR path LIKE '%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE '%/user/%' OR path LIKE '%/profile%' THEN 'my'
+                        WHEN path LIKE '%/auth/%' THEN 'landing'
+                        ELSE 'other'
+                    END as category,
                     COUNT(*) as total_views,
                     COUNT(DISTINCT google_id) as total_users
                 FROM access_logs
                 WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
-                  AND feature IS NOT NULL
-                  AND feature != ''
-                GROUP BY feature
+                GROUP BY category
                 ORDER BY total_views DESC
             """, (days,))
             rows = await cur.fetchall()
 
-            # 기능별 일별 추이 (최근 7일)
+            # 기능별 일별 추이 (최근 7일, path 추론 포함)
             await cur.execute("""
                 SELECT
                     DATE(created_at) as date,
-                    feature,
+                    CASE
+                        WHEN feature IS NOT NULL AND feature != '' THEN feature
+                        WHEN path LIKE '%/daily%' OR path LIKE '%/today%' THEN 'daily'
+                        WHEN path LIKE '%compatibility%' THEN 'compatibility'
+                        WHEN path LIKE '%/consult%' OR path LIKE '%/analyze%' THEN 'consult'
+                        WHEN path LIKE '%/diary%' THEN 'diary'
+                        WHEN path LIKE '%/mbti%' THEN 'mbti'
+                        WHEN path LIKE '%/personality%' THEN 'personality'
+                        WHEN path LIKE '%/influence%' THEN 'influence'
+                        WHEN path LIKE '%/saju%' OR path LIKE '%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE '%/user/%' OR path LIKE '%/profile%' THEN 'my'
+                        WHEN path LIKE '%/auth/%' THEN 'landing'
+                        ELSE 'other'
+                    END as category,
                     COUNT(*) as cnt
                 FROM access_logs
                 WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-                  AND feature IS NOT NULL
-                  AND feature != ''
-                GROUP BY DATE(created_at), feature
+                GROUP BY DATE(created_at), category
                 ORDER BY date ASC, cnt DESC
             """)
             trend_rows = await cur.fetchall()
