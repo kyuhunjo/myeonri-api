@@ -43,9 +43,8 @@ pipeline {
             steps {
                 script {
                     sh """
-                        docker save ${BE_IMAGE_TAG} -o /tmp/myeonri-api-dev.tar
-                        k3s ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import /tmp/myeonri-api-dev.tar
-                        rm -f /tmp/myeonri-api-dev.tar
+                        ssh -o StrictHostKeyChecking=no root@192.168.35.14 'echo SSH_OK'
+                        docker save ${BE_IMAGE_TAG} | ssh -o StrictHostKeyChecking=no root@192.168.35.14 'ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -'
                         kubectl rollout restart deployment/${BE_DEPLOY_NAME} -n ${NAMESPACE}
                         kubectl rollout status deployment/${BE_DEPLOY_NAME} -n ${NAMESPACE} --timeout=120s
                     """
