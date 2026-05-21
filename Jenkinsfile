@@ -43,7 +43,9 @@ pipeline {
             steps {
                 script {
                     sh """
-                        docker save ${BE_IMAGE_TAG} | ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -
+                        docker save ${BE_IMAGE_TAG} -o /tmp/myeonri-api-dev.tar
+                        ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import /tmp/myeonri-api-dev.tar
+                        rm -f /tmp/myeonri-api-dev.tar
                         kubectl rollout restart deployment/${BE_DEPLOY_NAME} -n ${NAMESPACE}
                         kubectl rollout status deployment/${BE_DEPLOY_NAME} -n ${NAMESPACE} --timeout=120s
                     """
