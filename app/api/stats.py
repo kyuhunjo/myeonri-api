@@ -139,16 +139,16 @@ async def get_stats_summary(
                 SELECT
                     CASE
                         WHEN feature IS NOT NULL AND feature != '' THEN feature
-                        WHEN path LIKE '%/daily%' OR path LIKE '%/today%' THEN 'daily'
-                        WHEN path LIKE '%compatibility%' THEN 'compatibility'
-                        WHEN path LIKE '%/consult%' OR path LIKE '%/analyze%' THEN 'consult'
-                        WHEN path LIKE '%/diary%' THEN 'diary'
-                        WHEN path LIKE '%/mbti%' THEN 'mbti'
-                        WHEN path LIKE '%/personality%' THEN 'personality'
-                        WHEN path LIKE '%/influence%' THEN 'influence'
-                        WHEN path LIKE '%/saju%' OR path LIKE '%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
-                        WHEN path LIKE '%/user/%' OR path LIKE '%/profile%' THEN 'my'
-                        WHEN path LIKE '%/auth/%' THEN 'landing'
+                        WHEN path LIKE CONCAT(CHAR(37), 'daily', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'today', CHAR(37)) THEN 'daily'
+                        WHEN path LIKE CONCAT(CHAR(37), 'compatibility', CHAR(37)) THEN 'compatibility'
+                        WHEN path LIKE CONCAT(CHAR(37), 'consult', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'analyze', CHAR(37)) THEN 'consult'
+                        WHEN path LIKE CONCAT(CHAR(37), 'diary', CHAR(37)) THEN 'diary'
+                        WHEN path LIKE CONCAT(CHAR(37), 'mbti', CHAR(37)) THEN 'mbti'
+                        WHEN path LIKE CONCAT(CHAR(37), 'personality', CHAR(37)) THEN 'personality'
+                        WHEN path LIKE CONCAT(CHAR(37), 'influence', CHAR(37)) THEN 'influence'
+                        WHEN path LIKE CONCAT(CHAR(37), 'saju', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'calendar', CHAR(37)) OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE CONCAT(CHAR(37), 'user/', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'profile', CHAR(37)) THEN 'my'
+                        WHEN path LIKE CONCAT(CHAR(37), 'auth/', CHAR(37)) THEN 'landing'
                         WHEN path = '/health' THEN 'health'
                         ELSE 'other'
                     END as category,
@@ -157,7 +157,7 @@ async def get_stats_summary(
                 WHERE DATE(created_at) = CURDATE()
                 GROUP BY category
                 ORDER BY cnt DESC
-            """)
+            """, ())
             feature_rows = await cur.fetchall()
 
             return {
@@ -192,14 +192,23 @@ async def get_daily_stats(
                     DATE(al.created_at) as date,
                     COUNT(*) as visits,
                     COUNT(DISTINCT al.google_id) as unique_users,
-                    COUNT(DISTINCT al.session_id) as sessions,
-                    (SELECT COUNT(*) FROM users WHERE DATE(created_at) = DATE(al.created_at)) as new_users
+                    COUNT(DISTINCT al.session_id) as sessions
                 FROM access_logs al
                 WHERE al.created_at >= DATE_SUB(CURDATE(), INTERVAL %s DAY)
                 GROUP BY DATE(al.created_at)
                 ORDER BY date DESC
             """, (days,))
             rows = await cur.fetchall()
+
+            # 신규 가입자 수 별도 조회
+            daily_new_users = {}
+            if rows:
+                dates_str = ",".join([f"\'{str(r[0])}\'" for r in rows])
+                await cur.execute(
+                    f"SELECT DATE(created_at) as date, COUNT(*) as cnt FROM users WHERE DATE(created_at) IN ({dates_str}) GROUP BY DATE(created_at)"
+                )
+                for r in await cur.fetchall():
+                    daily_new_users[str(r[0])] = r[1]
 
     return {
         "daily": [
@@ -208,7 +217,7 @@ async def get_daily_stats(
                 "pv": r[1],
                 "dau": r[2],
                 "sessions": r[3],
-                "new_users": r[4],
+                "new_users": daily_new_users.get(str(r[0]), 0),
             }
             for r in rows
         ]
@@ -252,16 +261,16 @@ async def get_feature_stats(
                 SELECT
                     CASE
                         WHEN feature IS NOT NULL AND feature != '' THEN feature
-                        WHEN path LIKE '%/daily%' OR path LIKE '%/today%' THEN 'daily'
-                        WHEN path LIKE '%compatibility%' THEN 'compatibility'
-                        WHEN path LIKE '%/consult%' OR path LIKE '%/analyze%' THEN 'consult'
-                        WHEN path LIKE '%/diary%' THEN 'diary'
-                        WHEN path LIKE '%/mbti%' THEN 'mbti'
-                        WHEN path LIKE '%/personality%' THEN 'personality'
-                        WHEN path LIKE '%/influence%' THEN 'influence'
-                        WHEN path LIKE '%/saju%' OR path LIKE '%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
-                        WHEN path LIKE '%/user/%' OR path LIKE '%/profile%' THEN 'my'
-                        WHEN path LIKE '%/auth/%' THEN 'landing'
+                        WHEN path LIKE CONCAT(CHAR(37), 'daily', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'today', CHAR(37)) THEN 'daily'
+                        WHEN path LIKE CONCAT(CHAR(37), 'compatibility', CHAR(37)) THEN 'compatibility'
+                        WHEN path LIKE CONCAT(CHAR(37), 'consult', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'analyze', CHAR(37)) THEN 'consult'
+                        WHEN path LIKE CONCAT(CHAR(37), 'diary', CHAR(37)) THEN 'diary'
+                        WHEN path LIKE CONCAT(CHAR(37), 'mbti', CHAR(37)) THEN 'mbti'
+                        WHEN path LIKE CONCAT(CHAR(37), 'personality', CHAR(37)) THEN 'personality'
+                        WHEN path LIKE CONCAT(CHAR(37), 'influence', CHAR(37)) THEN 'influence'
+                        WHEN path LIKE CONCAT(CHAR(37), 'saju', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'calendar', CHAR(37)) OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE CONCAT(CHAR(37), 'user/', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'profile', CHAR(37)) THEN 'my'
+                        WHEN path LIKE CONCAT(CHAR(37), 'auth/', CHAR(37)) THEN 'landing'
                         ELSE 'other'
                     END as category,
                     COUNT(*) as total_views,
@@ -279,16 +288,16 @@ async def get_feature_stats(
                     DATE(created_at) as date,
                     CASE
                         WHEN feature IS NOT NULL AND feature != '' THEN feature
-                        WHEN path LIKE '%/daily%' OR path LIKE '%/today%' THEN 'daily'
-                        WHEN path LIKE '%compatibility%' THEN 'compatibility'
-                        WHEN path LIKE '%/consult%' OR path LIKE '%/analyze%' THEN 'consult'
-                        WHEN path LIKE '%/diary%' THEN 'diary'
-                        WHEN path LIKE '%/mbti%' THEN 'mbti'
-                        WHEN path LIKE '%/personality%' THEN 'personality'
-                        WHEN path LIKE '%/influence%' THEN 'influence'
-                        WHEN path LIKE '%/saju%' OR path LIKE '%/calendar%' OR path = '/saju/calculate' THEN 'analysis'
-                        WHEN path LIKE '%/user/%' OR path LIKE '%/profile%' THEN 'my'
-                        WHEN path LIKE '%/auth/%' THEN 'landing'
+                        WHEN path LIKE CONCAT(CHAR(37), 'daily', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'today', CHAR(37)) THEN 'daily'
+                        WHEN path LIKE CONCAT(CHAR(37), 'compatibility', CHAR(37)) THEN 'compatibility'
+                        WHEN path LIKE CONCAT(CHAR(37), 'consult', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'analyze', CHAR(37)) THEN 'consult'
+                        WHEN path LIKE CONCAT(CHAR(37), 'diary', CHAR(37)) THEN 'diary'
+                        WHEN path LIKE CONCAT(CHAR(37), 'mbti', CHAR(37)) THEN 'mbti'
+                        WHEN path LIKE CONCAT(CHAR(37), 'personality', CHAR(37)) THEN 'personality'
+                        WHEN path LIKE CONCAT(CHAR(37), 'influence', CHAR(37)) THEN 'influence'
+                        WHEN path LIKE CONCAT(CHAR(37), 'saju', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'calendar', CHAR(37)) OR path = '/saju/calculate' THEN 'analysis'
+                        WHEN path LIKE CONCAT(CHAR(37), 'user/', CHAR(37)) OR path LIKE CONCAT(CHAR(37), 'profile', CHAR(37)) THEN 'my'
+                        WHEN path LIKE CONCAT(CHAR(37), 'auth/', CHAR(37)) THEN 'landing'
                         ELSE 'other'
                     END as category,
                     COUNT(*) as cnt
@@ -296,7 +305,7 @@ async def get_feature_stats(
                 WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
                 GROUP BY DATE(created_at), category
                 ORDER BY date ASC, cnt DESC
-            """)
+            """, ())
             trend_rows = await cur.fetchall()
 
             # 트렌드 데이터 구조화

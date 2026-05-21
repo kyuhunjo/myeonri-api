@@ -2,23 +2,53 @@ pipeline {
     agent any
 
     environment {
-        WORKER_HOST = '192.168.35.14'
+        BE_WORK_DIR = "${WORKSPACE}/myeonri-be"
     }
 
     stages {
-        stage('Build & Deploy') {
+        stage('BE: Git Checkout') {
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '**']],
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [
+                        [$class: 'RelativeTargetDirectory', relativeTargetDir: 'myeonri-be'],
+                        [$class: 'CleanBeforeCheckout']
+                    ],
+                    submoduleCfg: [],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/kyuhunjo/myeonri-api.git',
+                        credentialsId: 'github-token'
+                    ]]
+                ])
+            }
+        }
+
+        stage('BE: Build') {
             steps {
                 script {
-                    def branch = sh(script: 'git name-rev --name-only HEAD 2>/dev/null || echo dev', returnStdout: true).trim()
-                    branch = branch.replaceAll('^origin/', '').replaceAll('^remotes/origin/', '')
-                    echo "Deploying branch: ${branch}"
+                    def branch = sh(
+                        script: "cd ${BE_WORK_DIR} && git name-rev --name-only HEAD | sed 's/remotes/origin//' | sed 's/^\\///'",
+                        returnStdout: true
+                    ).trim()
 
-                    def scriptName = (branch == 'main') ? '/opt/myeonri-build-main.sh' : '/opt/myeonri-build-dev.sh'
+                    echo "Current branch: ${branch}"
+
+                    def imageTag = (branch == 'main') ? 'latest' : 'dev'
+                    def namespace = (branch == 'main') ? 'default' : 'dev'
+                    def deployName = (branch == 'main') ? 'myeonri-api' : 'myeonri-api-dev'
 
                     sh """
-                        ssh -o StrictHostKeyChecking=no root@${WORKER_HOST} "
-                            bash ${scriptName}
-                        "
+                        cd ${BE_WORK_DIR}
+                        docker build --no-cache -t myeonri-api:${imageTag} .
+                    """
+
+                    sh """
+                        ssh -o StrictHostKeyChecking=no root@192.168.35.14 'echo SSH_OK'
+                        docker save myeonri-api:${imageTag} | ssh -o StrictHostKeyChecking=no root@192.168.35.14 'ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -'
+                        kubectl rollout restart deployment/${deployName} -n ${namespace}
+                        kubectl rollout status deployment/${deployName} -n ${namespace} --timeout=120s
                     """
                 }
             }
@@ -27,10 +57,21 @@ pipeline {
 
     post {
         success {
-            echo '✅ 배포 성공!'
+            script {
+                def branch = sh(
+                    script: "cd ${BE_WORK_DIR} && git name-rev --name-only HEAD | sed 's/remotes/origin//' | sed 's/^\\///'",
+                    returnStdout: true
+                ).trim()
+
+                if (branch == 'main') {
+                    echo '✅ 운영 BE 배포 성공! api.imjoe24.com'
+                } else {
+                    echo '✅ 개발 BE 배포 성공! dev-api.imjoe24.com'
+                }
+            }
         }
         failure {
-            echo '❌ 배포 실패!'
+            echo '❌ BE 배포 실패!'
         }
     }
 }
