@@ -3,9 +3,10 @@ pipeline {
 
     environment {
         BE_WORK_DIR = "${WORKSPACE}/myeonri-be"
-        BE_IMAGE_TAG = "myeonri-api:dev"
-        BE_DEPLOY_NAME = "myeonri-api-dev"
-        NAMESPACE = "dev"
+        BRANCH_NAME = "${env.BRANCH_NAME}"
+        IMAGE_TAG = "${env.BRANCH_NAME == 'main' ? 'latest' : 'dev'}"
+        NAMESPACE = "${env.BRANCH_NAME == 'main' ? 'default' : 'dev'}"
+        DEPLOY_NAME = "${env.BRANCH_NAME == 'main' ? 'myeonri-api' : 'myeonri-api-dev'}"
     }
 
     stages {
@@ -13,7 +14,7 @@ pipeline {
             steps {
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: '*/dev']],
+                    branches: [[name: "*/${env.BRANCH_NAME}"]],
                     doGenerateSubmoduleConfigurations: false,
                     extensions: [
                         [$class: 'RelativeTargetDirectory', relativeTargetDir: 'myeonri-be'],
@@ -33,7 +34,7 @@ pipeline {
                 script {
                     sh """
                         cd ${BE_WORK_DIR}
-                        docker build --no-cache -t ${BE_IMAGE_TAG} .
+                        docker build --no-cache -t myeonri-api:${IMAGE_TAG} .
                     """
                 }
             }
@@ -44,9 +45,9 @@ pipeline {
                 script {
                     sh """
                         ssh -o StrictHostKeyChecking=no root@192.168.35.14 'echo SSH_OK'
-                        docker save ${BE_IMAGE_TAG} | ssh -o StrictHostKeyChecking=no root@192.168.35.14 'ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -'
-                        kubectl rollout restart deployment/${BE_DEPLOY_NAME} -n ${NAMESPACE}
-                        kubectl rollout status deployment/${BE_DEPLOY_NAME} -n ${NAMESPACE} --timeout=120s
+                        docker save myeonri-api:${IMAGE_TAG} | ssh -o StrictHostKeyChecking=no root@192.168.35.14 'ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -'
+                        kubectl rollout restart deployment/${DEPLOY_NAME} -n ${NAMESPACE}
+                        kubectl rollout status deployment/${DEPLOY_NAME} -n ${NAMESPACE} --timeout=120s
                     """
                 }
             }
@@ -54,7 +55,17 @@ pipeline {
     }
 
     post {
-        success { echo "✅ 개발 BE 배포 성공! dev-api.imjoe24.com" }
-        failure { echo "❌ 개발 BE 배포 실패!" }
+        success {
+            script {
+                if (env.BRANCH_NAME == 'main') {
+                    echo '✅ 운영 BE 배포 성공! api.imjoe24.com'
+                } else {
+                    echo '✅ 개발 BE 배포 성공! dev-api.imjoe24.com'
+                }
+            }
+        }
+        failure {
+            echo '❌ BE 배포 실패!'
+        }
     }
 }
