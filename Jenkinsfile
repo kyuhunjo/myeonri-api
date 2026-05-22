@@ -33,22 +33,39 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    echo "Current branch: ${branch}"
+                    def commitSha = sh(
+                        script: "cd ${BE_WORK_DIR} && git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
 
-                    def imageTag = (branch == 'main') ? 'latest' : 'dev'
+                    echo "Current branch: ${branch}"
+                    echo "Commit SHA: ${commitSha}"
+
                     def namespace = (branch == 'main') ? 'default' : 'dev'
                     def deployName = (branch == 'main') ? 'myeonri-api' : 'myeonri-api-dev'
 
+                    // 유니크 이미지 태그: 브랜치-커밋SHA
+                    def imageTag = "${branch}-${commitSha}"
+                    def containerName = (branch == 'main') ? 'myeonri-api' : 'myeonri-api-dev'
+
                     sh """
                         cd ${BE_WORK_DIR}
-                        docker build --no-cache -t myeonri-api:${imageTag} .
+                        docker build --no-cache -t myeonri-api:${imageTag} -t myeonri-api:${branch} .
                     """
 
                     sh """
-                        ssh -o StrictHostKeyChecking=no root@192.168.35.14 'echo SSH_OK'
+                        set -e
+
+                        echo "=== 이미지 전송: myeonri-api:${imageTag} ==="
                         docker save myeonri-api:${imageTag} | ssh -o StrictHostKeyChecking=no root@192.168.35.14 'ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -'
-                        kubectl rollout restart deployment/${deployName} -n ${namespace}
-                        kubectl rollout status deployment/${deployName} -n ${namespace} --timeout=120s
+
+                        echo "=== Deployment 이미지 업데이트 ==="
+                        kubectl set image deployment/${deployName} -n ${namespace} ${containerName}=docker.io/library/myeonri-api:${imageTag}
+
+                        echo "=== Rollout 대기 ==="
+                        kubectl rollout status deployment/${deployName} -n ${namespace} --timeout=180s
+
+                        echo "=== 완료: myeonri-api:${imageTag} ==="
                     """
                 }
             }
@@ -63,10 +80,15 @@ pipeline {
                     returnStdout: true
                 ).trim()
 
+                def commitSha = sh(
+                    script: "cd ${BE_WORK_DIR} && git rev-parse --short HEAD",
+                    returnStdout: true
+                ).trim()
+
                 if (branch == 'main') {
-                    echo '✅ 운영 BE 배포 성공! api.imjoe24.com'
+                    echo "✅ 운영 BE 배포 성공! api.imjoe24.com (${commitSha})"
                 } else {
-                    echo '✅ 개발 BE 배포 성공! dev-api.imjoe24.com'
+                    echo "✅ 개발 BE 배포 성공! dev-api.imjoe24.com (${commitSha})"
                 }
             }
         }
