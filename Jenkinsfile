@@ -29,7 +29,7 @@ pipeline {
             steps {
                 script {
                     def branch = sh(
-                        script: "cd ${BE_WORK_DIR} && git name-rev --name-only HEAD | sed 's/remotes/origin//' | sed 's/^\\///'",
+                        script: "cd ${BE_WORK_DIR} && git rev-parse --abbrev-ref HEAD",
                         returnStdout: true
                     ).trim()
 
@@ -76,7 +76,7 @@ pipeline {
         success {
             script {
                 def branch = sh(
-                    script: "cd ${BE_WORK_DIR} && git name-rev --name-only HEAD | sed 's/remotes/origin//' | sed 's/^\\///'",
+                    script: "cd ${BE_WORK_DIR} && git rev-parse --abbrev-ref HEAD",
                     returnStdout: true
                 ).trim()
 
