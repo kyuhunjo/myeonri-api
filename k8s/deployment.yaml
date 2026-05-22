@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myeonri-api
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myeonri-api
+  template:
+    metadata:
+      labels:
+        app: myeonri-api
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: worker-e4824b34
+      containers:
+        - name: myeonri-api
+          image: docker.io/library/myeonri-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MYSQL_HOST
+              value: mysql-service.default.svc.cluster.local
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              value: appuser
+            - name: MYSQL_PASSWORD
+              value: apppassword
+            - name: MYSQL_DATABASE
+              value: appdb
+            - name: CORS_ORIGINS
+              value: "https://imjoe24.com,https://api.imjoe24.com,https://myeonri.imjoe24.com,http://localhost:5173"
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: api-key
+                  name: myeonri-api-secret
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: groq-api-key
+                  name: myeonri-api-secret
+            - name: GROQ_MODEL
+              valueFrom:
+                secretKeyRef:
+                  key: groq-model
+                  name: myeonri-api-secret
+            - name: OPENWEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: openweather-api-key
+                  name: myeonri-api-secret
+            - name: SUNRISE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: sunrise-api-key
+                  name: myeonri-api-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: myeonri-api-service
+  namespace: default
+spec:
+  selector:
+    app: myeonri-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: api.imjoe24.com
+      http:
+        paths:
+          - backend:
+              service:
+                name: myeonri-api-service
+                port:
+                  number: 8000
+            path: /
+            pathType: Prefix
+  tls:
+    - hosts:
+        - api.imjoe24.com
+      secretName: imjoe24-tls
