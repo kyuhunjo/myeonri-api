@@ -25,12 +25,10 @@ pipeline {
             }
         }
 
-        stage('BE: Build') {
+        stage('BE: Build & Deploy') {
             steps {
                 script {
-                    // Jenkins 멀티브랜치 파이프라인의 브랜치명 사용
                     def branch = env.BRANCH_NAME
-
                     def commitSha = sh(
                         script: "cd ${BE_WORK_DIR} && git rev-parse --short HEAD",
                         returnStdout: true
@@ -41,9 +39,8 @@ pipeline {
 
                     def namespace = (branch == 'main') ? 'default' : 'dev'
                     def deployName = (branch == 'main') ? 'myeonri-api' : 'myeonri-api-dev'
-                    def containerName = (branch == 'main') ? 'myeonri-api' : 'myeonri-api-dev'
+                    def deployFile = (branch == 'main') ? 'k8s/deployment.yaml' : 'k8s/dev/myeonri-api-dev.yaml'
 
-                    // 유니크 이미지 태그: 브랜치-커밋SHA
                     def imageTag = "${branch}-${commitSha}"
 
                     sh """
@@ -57,8 +54,10 @@ pipeline {
                         echo "=== 이미지 전송: myeonri-api:${imageTag} ==="
                         docker save myeonri-api:${imageTag} | ssh -o StrictHostKeyChecking=no root@192.168.35.14 'ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -'
 
-                        echo "=== Deployment 이미지 업데이트 ==="
-                        kubectl set image deployment/${deployName} -n ${namespace} ${containerName}=docker.io/library/myeonri-api:${imageTag}
+                        echo "=== Deployment YAML 적용 ==="
+                        sed 's|image: docker.io/library/myeonri-api:.*|image: docker.io/library/myeonri-api:${imageTag}|' \\
+                            ${BE_WORK_DIR}/${deployFile} | \\
+                            ssh -o StrictHostKeyChecking=no root@192.168.35.14 'kubectl apply -n ${namespace} -f -'
 
                         echo "=== Rollout 대기 ==="
                         kubectl rollout status deployment/${deployName} -n ${namespace} --timeout=180s
