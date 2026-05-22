@@ -28,10 +28,8 @@ pipeline {
         stage('BE: Build') {
             steps {
                 script {
-                    def branch = sh(
-                        script: "cd ${BE_WORK_DIR} && git rev-parse --abbrev-ref HEAD",
-                        returnStdout: true
-                    ).trim()
+                    // Jenkins 멀티브랜치 파이프라인의 브랜치명 사용
+                    def branch = env.BRANCH_NAME
 
                     def commitSha = sh(
                         script: "cd ${BE_WORK_DIR} && git rev-parse --short HEAD",
@@ -43,10 +41,10 @@ pipeline {
 
                     def namespace = (branch == 'main') ? 'default' : 'dev'
                     def deployName = (branch == 'main') ? 'myeonri-api' : 'myeonri-api-dev'
+                    def containerName = (branch == 'main') ? 'myeonri-api' : 'myeonri-api-dev'
 
                     // 유니크 이미지 태그: 브랜치-커밋SHA
                     def imageTag = "${branch}-${commitSha}"
-                    def containerName = (branch == 'main') ? 'myeonri-api' : 'myeonri-api-dev'
 
                     sh """
                         cd ${BE_WORK_DIR}
@@ -75,11 +73,7 @@ pipeline {
     post {
         success {
             script {
-                def branch = sh(
-                    script: "cd ${BE_WORK_DIR} && git rev-parse --abbrev-ref HEAD",
-                    returnStdout: true
-                ).trim()
-
+                def branch = env.BRANCH_NAME
                 def commitSha = sh(
                     script: "cd ${BE_WORK_DIR} && git rev-parse --short HEAD",
                     returnStdout: true
