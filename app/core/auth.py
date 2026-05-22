@@ -14,6 +14,9 @@ PUBLIC_PATHS = {
     "/redoc",
     "/auth/google",
     "/auth/google/callback",
+    "/weather/current",
+    "/weather/forecast",
+    "/weather/sunrise",
 }
 
 

@@ -55,5 +55,9 @@ class Settings:
     # Frontend URL
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://imjoe24.com")
 
+    # Weather / Sunrise APIs
+    OPENWEATHER_API_KEY: str = os.getenv("OPENWEATHER_API_KEY", "")
+    SUNRISE_API_KEY: str = os.getenv("SUNRISE_API_KEY", "")
+
 
 settings = Settings()
