@@ -1,0 +1,67 @@
+# ── BE: myeonri-api-dev Deployment ──
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myeonri-api-dev
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myeonri-api-dev
+  template:
+    metadata:
+      labels:
+        app: myeonri-api-dev
+    spec:
+      containers:
+        - name: myeonri-api-dev
+          image: docker.io/library/myeonri-api:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MYSQL_HOST
+              value: mysql-service.default.svc.cluster.local
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              value: appuser
+            - name: MYSQL_PASSWORD
+              value: apppassword
+            - name: MYSQL_DATABASE
+              value: appdb_dev
+            - name: CORS_ORIGINS
+              value: "https://dev.imjoe24.com,https://dev-api.imjoe24.com,http://localhost:5173"
+            # 아래 env는 Jenkinsfile에서 kubectl set env로 주입
+            - name: GOOGLE_CLIENT_ID
+            - name: GOOGLE_CLIENT_SECRET
+            - name: GOOGLE_REDIRECT_URI
+            - name: API_KEY
+            - name: GROQ_API_KEY
+            - name: GROQ_MODEL
+            - name: OPENWEATHER_API_KEY
+            - name: SUNRISE_API_KEY
+      volumeMounts:
+        - name: logs
+          mountPath: /var/log/myeonri
+      nodeSelector:
+        kubernetes.io/hostname: worker-e4824b34
+    volumes:
+      - name: logs
+        persistentVolumeClaim:
+          claimName: myeonri-api-logs-pvc
+---
+# BE Service (dev)
+apiVersion: v1
+kind: Service
+metadata:
+  name: myeonri-api-dev-service
+  namespace: dev
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+  selector:
+    app: myeonri-api-dev
+  type: ClusterIP
