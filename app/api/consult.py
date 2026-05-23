@@ -252,6 +252,8 @@ async def landing_intro_stream(req: LandingIntroRequest):
 
 오늘의 기운과 분위기를 반영하여 방문자에게 짧은 인사말과 함께 이 서비스(명리심리상담사 - AI 기반 사주명리 분석 및 심리상담 서비스)를 자연스럽게 소개해주세요."""
 
+    return StreamingResponse(
+        _stream_groq({}, None, override_system=system_prompt, override_prompt=user_prompt, override_temperature=0.7),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
