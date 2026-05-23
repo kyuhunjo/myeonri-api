@@ -281,3 +281,73 @@ async def get_sunrise_sunset(
         nauticalTwilight={"morning": g("nautm"), "evening": g("naute")},
         astronomicalTwilight={"morning": g("astm"), "evening": g("aste")},
     )
+
+
+# ──────────────────────────────────────────
+#  산림청 청정넷 — 미세먼지 (광주/전국)
+# ──────────────────────────────────────────
+
+@router.get("/air-quality", response_model=dict)
+async def get_air_quality(
+    obsrrTpcd: str = Query("0051", description="관측소 코드 (0051=광주, 0011=서울)"),
+    _=None,
+):
+    """산림청 청정넷 미세먼지/초미세먼지/극초미세먼지 데이터"""
+    api_key = settings.SUNRISE_API_KEY  # 같은 공공데이터포털 키 사용
+    if not api_key:
+        raise HTTPException(503, "API key not configured")
+
+    now = datetime.now(KST)
+    end_dt = now.strftime("%Y%m%d%H%M")
+    start_dt = (now - timedelta(days=1)).strftime("%Y%m%d%H%M")
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                "http://apis.data.go.kr/1400377/AicanDustData/dustData",
+                params={
+                    "serviceKey": api_key,
+                    "numOfRows": "10",
+                    "pageNo": "1",
+                    "startDt": start_dt,
+                    "endDt": end_dt,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.HTTPError as e:
+        logger.error(f"Air quality API error: {e}")
+        raise HTTPException(502, "Failed to fetch air quality data")
+    except Exception as e:
+        logger.error(f"Air quality parse error: {e}")
+        raise HTTPException(502, f"Invalid response: {str(e)[:100]}")
+
+    items = data.get("items", [])
+    if not items:
+        return {
+            "pm10": None,
+            "pm25": None,
+            "pm01": None,
+            "temperature": None,
+            "humidity": None,
+            "windSpeed": None,
+            "windDirection": None,
+            "obsrtDtm": None,
+            "obsrrTpcd": obsrrTpcd,
+            "source": "AICAN (산림청 청정넷)",
+        }
+
+    # 최신 데이터
+    latest = items[-1] if isinstance(items, list) else items
+    return {
+        "pm10": latest.get("obsrt_pm10_val"),
+        "pm25": latest.get("obsrt_pm25_val"),
+        "pm01": latest.get("obsrt_pm01_val"),
+        "temperature": latest.get("obsrt_tmprt"),
+        "humidity": latest.get("obsrt_hmdt"),
+        "windSpeed": latest.get("obsrt_ws"),
+        "windDirection": latest.get("obsrt_wndrc_val"),
+        "obsrtDtm": latest.get("obsrt_dtm"),
+        "obsrrTpcd": latest.get("obsrr_tpcd"),
+        "source": "AICAN (산림청 청정넷)",
+    }

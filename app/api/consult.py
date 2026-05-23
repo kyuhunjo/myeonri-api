@@ -24,6 +24,8 @@ router = APIRouter(prefix="/consult", tags=["상담분석"])
 class LandingIntroRequest(BaseModel):
     weather_description: str = ""
     weather_temp: float | None = None
+    pm10: float | None = None
+    pm25: float | None = None
     sunrise_time: str = ""
     sunset_time: str = ""
     today_ganzi_kr: str = ""
@@ -235,10 +237,14 @@ async def landing_intro_stream(req: LandingIntroRequest):
 
     weather_str = req.weather_description or "정보 없음"
     weather_temp = req.weather_temp or "?"
+    pm10_str = f"{req.pm10:.0f}" if req.pm10 is not None else "정보 없음"
+    pm25_str = f"{req.pm25:.0f}" if req.pm25 is not None else "정보 없음"
     sunrise_str = req.sunrise_time or "--:--"
     sunset_str = req.sunset_time or "--:--"
     weather_str = req.weather_description or "정보 없음"
     weather_temp = req.weather_temp or "?"
+    pm10_str = f"{req.pm10:.0f}" if req.pm10 is not None else "정보 없음"
+    pm25_str = f"{req.pm25:.0f}" if req.pm25 is not None else "정보 없음"
     sunrise_str = req.sunrise_time or "--:--"
     sunset_str = req.sunset_time or "--:--"
     ganzi_info = f"{req.today_ganzi_kr or ''} / {req.today_ganzi_cn or ''}" if req.today_ganzi_kr else "정보 없음"
@@ -255,6 +261,7 @@ async def landing_intro_stream(req: LandingIntroRequest):
 
     user_prompt = f"""오늘 날짜 정보:
 - 날씨: {weather_str}, {weather_temp}°C
+- 미세먼지: PM10 {pm10_str}㎍/m³ / PM2.5 {pm25_str}㎍/m³
 - 일출: {sunrise_str} / 일몰: {sunset_str}
 - 오늘의 일진: {ganzi_info}
 
