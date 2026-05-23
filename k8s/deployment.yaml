@@ -34,31 +34,15 @@ spec:
               value: appdb
             - name: CORS_ORIGINS
               value: "https://imjoe24.com,https://api.imjoe24.com,https://myeonri.imjoe24.com,http://localhost:5173"
+            # 아래 env는 Jenkinsfile에서 kubectl set env로 주입
+            - name: GOOGLE_CLIENT_ID
+            - name: GOOGLE_CLIENT_SECRET
+            - name: GOOGLE_REDIRECT_URI
             - name: API_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: api-key
-                  name: myeonri-api-secret
             - name: GROQ_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: groq-api-key
-                  name: myeonri-api-secret
             - name: GROQ_MODEL
-              valueFrom:
-                secretKeyRef:
-                  key: groq-model
-                  name: myeonri-api-secret
             - name: OPENWEATHER_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: openweather-api-key
-                  name: myeonri-api-secret
             - name: SUNRISE_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  key: sunrise-api-key
-                  name: myeonri-api-secret
 ---
 apiVersion: v1
 kind: Service
