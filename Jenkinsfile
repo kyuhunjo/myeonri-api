@@ -54,6 +54,10 @@ pipeline {
                         sh """
                             cd ${BE_WORK_DIR}
                             docker build --no-cache -t ${imageName}:latest .
+
+                            echo "=== Registry push ==="
+                            REG_IP=10.43.19.223
+                            skopeo copy --dest-tls-verify=false docker-daemon:${imageName}:latest docker://$REG_IP:5000/${imageName}:latest
                         """
 
                         sh """

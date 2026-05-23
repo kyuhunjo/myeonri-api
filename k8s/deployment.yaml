@@ -17,7 +17,7 @@ spec:
         kubernetes.io/hostname: worker-e4824b34
       containers:
         - name: myeonri-api
-          image: docker.io/library/myeonri-api-main:latest
+          image: 10.43.19.223:5000/myeonri-api-main:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
