@@ -30,22 +30,15 @@ pipeline {
             steps {
                 script {
                     def branch = env.BRANCH_NAME
-                    def commitSha = sh(
-                        script: "cd ${BE_WORK_DIR} && git rev-parse --short HEAD",
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Current branch: ${branch}"
-                    echo "Commit SHA: ${commitSha}"
-
-                    def imageTag = "${branch}-${commitSha}"
                     def isMain = (branch == 'main')
-
+                    def imageName = isMain ? 'myeonri-api-main' : 'myeonri-api-dev'
                     def namespace = isMain ? 'default' : 'dev'
                     def deployName = isMain ? 'myeonri-api' : 'myeonri-api-dev'
                     def deployFile = isMain ? 'k8s/deployment.yaml' : 'k8s/dev/myeonri-api-dev.yaml'
                     def redirectCred = isMain ? 'be-google-redirect-prod' : 'be-google-redirect-dev'
-                    def mysqlDb = isMain ? 'appdb' : 'appdb_dev'
+
+                    echo "Current branch: ${branch}"
+                    echo "Image: ${imageName}"
 
                     withCredentials([
                         string(credentialsId: 'be-google-client-id', variable: 'BE_GOOGLE_CLIENT_ID'),
@@ -60,16 +53,14 @@ pipeline {
                     ]) {
                         sh """
                             cd ${BE_WORK_DIR}
-                            docker build --no-cache -t myeonri-api:${imageTag} .
+                            docker build --no-cache -t ${imageName}:latest .
                         """
 
                         sh """
                             set -e
 
                             echo "=== Deployment YAML 적용 ==="
-                            sed 's|image: docker.io/library/myeonri-api:.*|image: docker.io/library/myeonri-api:${imageTag}|' \\
-                                ${BE_WORK_DIR}/${deployFile} | \\
-                                kubectl apply -n ${namespace} -f -
+                            kubectl apply -n ${namespace} -f ${BE_WORK_DIR}/${deployFile}
 
                             echo "=== Env 주입 (Jenkins credential → k8s env) ==="
                             kubectl set env deployment/${deployName} -n ${namespace} \\
@@ -86,18 +77,7 @@ pipeline {
                             echo "=== Rollout 대기 ==="
                             kubectl rollout status deployment/${deployName} -n ${namespace} --timeout=180s
 
-                            echo "=== 이미지 검증 ==="
-                            ACTUAL=\$(kubectl get pods -n ${namespace} -l app=${deployName} -o jsonpath='{.items[0].status.containerStatuses[0].imageID}' 2>/dev/null)
-                            echo "파드 이미지 ID: \$ACTUAL"
-                            if echo "\$ACTUAL" | grep -q "${imageTag}"; then
-                                echo "✅ 이미지 일치: ${imageTag}"
-                            else
-                                echo "⚠️ 이미지 불일치 - rollout 재시작"
-                                kubectl rollout restart deployment/${deployName} -n ${namespace}
-                                kubectl rollout status deployment/${deployName} -n ${namespace} --timeout=120s
-                            fi
-
-                            echo "=== 완료: myeonri-api:${imageTag} ==="
+                            echo "=== 완료: ${imageName} ==="
                         """
                     }
                 }
@@ -109,15 +89,10 @@ pipeline {
         success {
             script {
                 def branch = env.BRANCH_NAME
-                def commitSha = sh(
-                    script: "cd ${BE_WORK_DIR} && git rev-parse --short HEAD",
-                    returnStdout: true
-                ).trim()
-
                 if (branch == 'main') {
-                    echo "✅ 운영 BE 배포 성공! api.imjoe24.com (${commitSha})"
+                    echo "✅ 운영 BE 배포 성공! api.imjoe24.com"
                 } else {
-                    echo "✅ 개발 BE 배포 성공! dev-api.imjoe24.com (${commitSha})"
+                    echo "✅ 개발 BE 배포 성공! dev-api.imjoe24.com"
                 }
             }
         }
