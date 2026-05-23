@@ -50,7 +50,7 @@ pipeline {
                         string(credentialsId: 'be-openweather-key', variable: 'BE_OPENWEATHER_KEY'),
                         string(credentialsId: 'be-sunrise-key', variable: 'BE_SUNRISE_KEY'),
                         string(credentialsId: 'be-mysql-password', variable: 'BE_MYSQL_PASSWORD'),
-                        string(credentialsId: 'docker-hub-token', variable: 'DOCKER_HUB_TOKEN')
+                        string(credentialsId: 'jenkins-token', variable: 'DOCKER_HUB_TOKEN')
                     ]) {
                         sh """
                             echo "$DOCKER_HUB_TOKEN" | docker login -u kyuhunjo --password-stdin
