@@ -17,6 +17,7 @@ PUBLIC_PATHS = {
     "/weather/current",
     "/weather/forecast",
     "/weather/sunrise",
+    "/weather/air-quality",
     "/stats/pageview",
     "/stats/session-end",
     "/consult/landing-intro/stream",
