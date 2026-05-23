@@ -17,7 +17,7 @@ spec:
       containers:
         - name: myeonri-api-dev
           image: docker.io/kyuhunjo/myeonri-api-dev:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           env:
