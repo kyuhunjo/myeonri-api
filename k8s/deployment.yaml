@@ -43,6 +43,13 @@ spec:
             - name: GROQ_MODEL
             - name: OPENWEATHER_API_KEY
             - name: SUNRISE_API_KEY
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log/myeonri
+      volumes:
+        - name: logs
+          persistentVolumeClaim:
+            claimName: myeonri-api-logs-pvc
 ---
 apiVersion: v1
 kind: Service

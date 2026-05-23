@@ -42,15 +42,15 @@ spec:
             - name: GROQ_MODEL
             - name: OPENWEATHER_API_KEY
             - name: SUNRISE_API_KEY
-      volumeMounts:
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log/myeonri
+      volumes:
         - name: logs
-          mountPath: /var/log/myeonri
+          persistentVolumeClaim:
+            claimName: myeonri-api-logs-pvc
       nodeSelector:
         kubernetes.io/hostname: worker-e4824b34
-    volumes:
-      - name: logs
-        persistentVolumeClaim:
-          claimName: myeonri-api-logs-pvc
 ---
 # BE Service (dev)
 apiVersion: v1
