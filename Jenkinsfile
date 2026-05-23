@@ -9,12 +9,13 @@ pipeline {
         stage('BE: Git Checkout') {
             steps {
                 checkout([
-                    $class: 'GitSCM',
                     branches: [[name: '**']],
+                    $class: 'GitSCM',
                     doGenerateSubmoduleConfigurations: false,
                     extensions: [
                         [$class: 'RelativeTargetDirectory', relativeTargetDir: 'myeonri-be'],
-                        [$class: 'CleanBeforeCheckout']
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CloneOption', noTags: true, honorRefspec: true],
                     ],
                     submoduleCfg: [],
                     userRemoteConfigs: [[
