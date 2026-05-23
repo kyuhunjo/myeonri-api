@@ -10,7 +10,6 @@ pipeline {
             steps {
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: '**']],
                     doGenerateSubmoduleConfigurations: false,
                     extensions: [
                         [$class: 'RelativeTargetDirectory', relativeTargetDir: 'myeonri-be'],
