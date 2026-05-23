@@ -49,7 +49,8 @@ async def landing_intro_stream(req: LandingIntroRequest):
 규칙:
 - 200~300자 이내로 간결하게
 - 따뜻하고 부드러운 어조, 존댓말
-- 날씨와 일진 정보를 자연스럽게 연결
+- **미세먼지(PM10/PM2.5) 수치를 반드시 포함**하여 오늘 공기 상태를 언급
+- 날씨, 미세먼지, 일진 정보를 자연스럽게 연결
 - 서비스 소개를 마지막에 한 문장으로 포함
 - 인사말로 시작"""
 
@@ -59,7 +60,9 @@ async def landing_intro_stream(req: LandingIntroRequest):
 - 일출: {sunrise_str} / 일몰: {sunset_str}
 - 오늘의 일진: {ganzi_info}
 
-오늘의 기운과 분위기를 반영하여 방문자에게 짧은 인사말과 함께 이 서비스(명리심리상담사 - AI 기반 사주명리 분석 및 심리상담 서비스)를 자연스럽게 소개해주세요."""
+오늘의 기운과 분위기를 반영하여 방문자에게 짧은 인사말과 함께 이 서비스(명리심리상담사 - AI 기반 사주명리 분석 및 심리상담 서비스)를 자연스럽게 소개해주세요.
+
+**중요: 미세먼지 정보(PM10, PM2.5)를 꼭 인사말에 포함해주세요.**"""
 
     return StreamingResponse(
         _stream_groq({}, None, override_system=system_prompt, override_prompt=user_prompt, override_temperature=0.7),
