@@ -67,23 +67,24 @@ pipeline {
                             set -e
 
                             echo "=== 이미지 전송: myeonri-api:${imageTag} ==="
+                            echo "=== 이미지 전송: myeonri-api:${imageTag} ==="
                             docker save myeonri-api:${imageTag} | ssh -o StrictHostKeyChecking=no root@192.168.35.14 'ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -'
+
                             echo "=== Deployment YAML 적용 (이미지 태그 치환) ==="
                             sed 's|image: docker.io/library/myeonri-api:.*|image: docker.io/library/myeonri-api:${imageTag}|' \
-                                ${BE_WORK_DIR}/${deployFile} | 
-                                    ssh -o StrictHostKeyChecking=no root@192.168.35.14 "kubectl apply -n ${namespace} -f -"
-                            else
+                                ${BE_WORK_DIR}/${deployFile} | \
+                                ssh -o StrictHostKeyChecking=no root@192.168.35.14 'kubectl apply -n ${namespace} -f -'
 
                             echo "=== Env 주입 (Jenkins credential → k8s env) ==="
-                            kubectl set env deployment/${deployName} -n ${namespace} \\
-                                GOOGLE_CLIENT_ID=${BE_GOOGLE_CLIENT_ID} \\
-                                GOOGLE_CLIENT_SECRET=${BE_GOOGLE_CLIENT_SECRET} \\
-                                GOOGLE_REDIRECT_URI=${BE_GOOGLE_REDIRECT_URI} \\
-                                GROQ_API_KEY=${BE_GROQ_API_KEY} \\
-                                GROQ_MODEL=${BE_GROQ_MODEL} \\
-                                API_KEY=${BE_API_KEY} \\
-                                OPENWEATHER_API_KEY=${BE_OPENWEATHER_KEY} \\
-                                SUNRISE_API_KEY=${BE_SUNRISE_KEY} \\
+                            kubectl set env deployment/${deployName} -n ${namespace} \
+                                GOOGLE_CLIENT_ID=${BE_GOOGLE_CLIENT_ID} \
+                                GOOGLE_CLIENT_SECRET=${BE_GOOGLE_CLIENT_SECRET} \
+                                GOOGLE_REDIRECT_URI=${BE_GOOGLE_REDIRECT_URI} \
+                                GROQ_API_KEY=${BE_GROQ_API_KEY} \
+                                GROQ_MODEL=${BE_GROQ_MODEL} \
+                                API_KEY=${BE_API_KEY} \
+                                OPENWEATHER_API_KEY=${BE_OPENWEATHER_KEY} \
+                                SUNRISE_API_KEY=${BE_SUNRISE_KEY} \
                                 MYSQL_PASSWORD=${BE_MYSQL_PASSWORD}
 
                             echo "=== Rollout 대기 ==="
