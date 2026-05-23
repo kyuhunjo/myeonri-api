@@ -37,15 +37,15 @@ pipeline {
                     echo "Current branch: ${branch}"
                     echo "Commit SHA: ${commitSha}"
 
-                    def namespace = (branch == 'main') ? 'default' : 'dev'
-                    def deployName = (branch == 'main') ? 'myeonri-api' : 'myeonri-api-dev'
-                    def deployFile = (branch == 'main') ? 'k8s/deployment.yaml' : 'k8s/dev/myeonri-api-dev.yaml'
-
                     def imageTag = "${branch}-${commitSha}"
+                    def isMain = (branch == 'main')
 
-                    // 브랜치별 Google OAuth redirect URI
-                    def redirectCred = (branch == 'main') ? 'be-google-redirect-prod' : 'be-google-redirect-dev'
-                    def mysqlDb = (branch == 'main') ? 'appdb' : 'appdb_dev'
+                    // 브랜치별 설정
+                    def namespace = isMain ? 'default' : 'dev'
+                    def deployName = isMain ? 'myeonri-api' : 'myeonri-api-dev'
+                    def deployFile = isMain ? 'k8s/deployment.yaml' : null
+                    def redirectCred = isMain ? 'be-google-redirect-prod' : 'be-google-redirect-dev'
+                    def mysqlDb = isMain ? 'appdb' : 'appdb_dev'
 
                     withCredentials([
                         string(credentialsId: 'be-google-client-id', variable: 'BE_GOOGLE_CLIENT_ID'),
@@ -68,11 +68,14 @@ pipeline {
 
                             echo "=== 이미지 전송: myeonri-api:${imageTag} ==="
                             docker save myeonri-api:${imageTag} | ssh -o StrictHostKeyChecking=no root@192.168.35.14 'ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -'
-
-                            echo "=== Deployment YAML 적용 (이미지 태그 치환) ==="
-                            sed 's|image: docker.io/library/myeonri-api:.*|image: docker.io/library/myeonri-api:${imageTag}|' \\
-                                ${BE_WORK_DIR}/${deployFile} | \\
-                                ssh -o StrictHostKeyChecking=no root@192.168.35.14 'kubectl apply -n ${namespace} -f -'
+                            if [ "$isMain" = true ]; then
+                                echo "=== Deployment YAML 적용 (이미지 태그 치환) ==="
+                                sed 's|image: docker.io/library/myeonri-api:.*|image: docker.io/library/myeonri-api:${imageTag}|' 
+                                    ${BE_WORK_DIR}/${deployFile} | 
+                                    ssh -o StrictHostKeyChecking=no root@192.168.35.14 "kubectl apply -n ${namespace} -f -"
+                            else
+                                echo "=== Dev: YAML apply 건너뜀 ==="
+                            fi
 
                             echo "=== Env 주입 (Jenkins credential → k8s env) ==="
                             kubectl set env deployment/${deployName} -n ${namespace} \\
