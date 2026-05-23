@@ -19,6 +19,7 @@ PUBLIC_PATHS = {
     "/weather/sunrise",
     "/stats/pageview",
     "/stats/session-end",
+    "/consult/landing-intro/stream",
 }
 
 

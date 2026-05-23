@@ -21,6 +21,16 @@ logger = logging.getLogger("myeonri-api")
 router = APIRouter(prefix="/consult", tags=["상담분석"])
 
 
+class LandingIntroRequest(BaseModel):
+    weather_description: str = ""
+    weather_temp: float | None = None
+    sunrise_time: str = ""
+    sunset_time: str = ""
+    today_ganzi_kr: str = ""
+    today_ganzi_cn: str = ""
+    today_ddi: str = ""
+
+
 class ConsultCategory(str, Enum):
     CAREER = "career"
     LOVE = "love"
@@ -209,6 +219,90 @@ async def consult_analyze_stream(req: ConsultRequest):
 
     return StreamingResponse(
         _stream_groq(saju, req, override_temperature=req.temperature),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+@router.post("/landing-intro/stream")
+async def landing_intro_stream(req: LandingIntroRequest):
+    """랜딩페이지 AI 소개 (SSE 스트리밍) - 공개 엔드포인트"""
+    if not settings.GROQ_API_KEY:
+        raise HTTPException(status_code=500, detail="Groq API 키가 설정되지 않았습니다")
+
+    # 오늘 날짜 정보
+    weather_str = req.weather_description or "정보 없음"
+    weather_temp = req.weather_temp or "?"
+    sunrise_str = req.sunrise_time or "--:--"
+    sunset_str = req.sunset_time or "--:--"
+    
+    ganzi_info = f"{req.today_ganzi_kr or ''} / {req.today_ganzi_cn or ''}" if req.today_ganzi_kr else "정보 없음"
+
+    system_prompt = """당신은 명리심리상담사(Myeonri)의 AI 어시스턴트입니다.
+방문자에게 오늘의 기운과 서비스를 자연스럽게 소개해주세요.
+
+규칙:
+- 200~300자 이내로 간결하게
+- 따뜻하고 부드러운 어조, 존댓말
+- 날씨와 일진 정보를 자연스럽게 연결
+- 서비스 소개를 마지막에 한 문장으로 포함
+- 인사말로 시작"""
+
+    user_prompt = f"""오늘 날짜 정보:
+- 날씨: {weather_str}, {weather_temp}°C
+- 일출: {sunrise_str} / 일몰: {sunset_str}
+- 오늘의 일진: {ganzi_info}
+
+오늘의 기운과 분위기를 반영하여 방문자에게 짧은 인사말과 함께 이 서비스(명리심리상담사 - AI 기반 사주명리 분석 및 심리상담 서비스)를 자연스럽게 소개해주세요."""
+
+    import httpx
+    from fastapi.responses import StreamingResponse
+
+    async def _stream():
+        async with httpx.AsyncClient(timeout=30) as client:
+            async with client.stream(
+                "POST",
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.GROQ_MODEL,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 500,
+                    "stream": True,
+                },
+            ) as resp:
+                if resp.status_code != 200:
+                    error_body = await resp.aread()
+                    yield f"data: {json.dumps({'error': error_body.decode()[:200]})}\n\n"
+                    return
+
+                async for line in resp.aiter_lines():
+                    if line.startswith("data: "):
+                        chunk = line[6:].strip()
+                        if chunk == "[DONE]":
+                            continue
+                        try:
+                            data = json.loads(chunk)
+                            delta = data["choices"][0].get("delta", {})
+                            content = delta.get("content", "")
+                            if content:
+                                yield f"data: {json.dumps({'text': content})}\n\n"
+                        except (json.JSONDecodeError, KeyError):
+                            continue
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        _stream(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
