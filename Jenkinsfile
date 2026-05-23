@@ -50,14 +50,19 @@ pipeline {
                         string(credentialsId: 'be-openweather-key', variable: 'BE_OPENWEATHER_KEY'),
                         string(credentialsId: 'be-sunrise-key', variable: 'BE_SUNRISE_KEY'),
                         string(credentialsId: 'be-mysql-password', variable: 'BE_MYSQL_PASSWORD'),
+                        string(credentialsId: 'docker-hub-token', variable: 'DOCKER_HUB_TOKEN')
                     ]) {
+                        sh """
+                            echo "$DOCKER_HUB_TOKEN" | docker login -u kyuhunjo --password-stdin
+                        """
+
                         sh """
                             cd ${BE_WORK_DIR}
                             docker build --no-cache -t ${imageName}:latest .
 
-                            echo "=== Registry push ==="
-                            REG_IP=10.43.19.223
-                            skopeo copy --dest-tls-verify=false docker-daemon:${imageName}:latest docker://$REG_IP:5000/${imageName}:latest
+                            echo "=== Docker Hub push ==="
+                            docker tag ${imageName}:latest kyuhunjo/${imageName}:latest
+                            docker push kyuhunjo/${imageName}:latest
                         """
 
                         sh """
