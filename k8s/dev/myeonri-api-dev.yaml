@@ -33,6 +33,8 @@ spec:
               value: appdb_dev
             - name: CORS_ORIGINS
               value: "https://dev.imjoe24.com,https://dev-api.imjoe24.com,http://localhost:5173"
+            - name: FRONTEND_URL
+              value: https://dev.imjoe24.com
             # 아래 env는 Jenkinsfile에서 kubectl set env로 주입
             - name: GOOGLE_CLIENT_ID
             - name: GOOGLE_CLIENT_SECRET
