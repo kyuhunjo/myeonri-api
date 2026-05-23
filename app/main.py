@@ -10,7 +10,7 @@ import time
 
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.api import saju, user, consult, calendar, logs, rbac, auth_google, daily, compatibility, profile, influence, mbti, personality, diary, stats, weather
+from app.api import saju, user, consult, consult_analyze, consult_landing, calendar, logs, rbac, auth_google, daily, compatibility, profile, influence, mbti, personality, diary, stats, weather
 from app.core.config import settings
 from app.core.database import get_pool, close_pool
 from app.core.auth import APIKeyMiddleware
@@ -55,6 +55,8 @@ app.include_router(auth_google.router)
 app.include_router(saju.router)
 app.include_router(user.router)
 app.include_router(consult.router)
+app.include_router(consult_analyze.router)
+app.include_router(consult_landing.router)
 app.include_router(daily.router)
 app.include_router(compatibility.router)
 app.include_router(influence.router)
