@@ -237,6 +237,10 @@ async def landing_intro_stream(req: LandingIntroRequest):
     weather_temp = req.weather_temp or "?"
     sunrise_str = req.sunrise_time or "--:--"
     sunset_str = req.sunset_time or "--:--"
+    weather_str = req.weather_description or "정보 없음"
+    weather_temp = req.weather_temp or "?"
+    sunrise_str = req.sunrise_time or "--:--"
+    sunset_str = req.sunset_time or "--:--"
     ganzi_info = f"{req.today_ganzi_kr or ''} / {req.today_ganzi_cn or ''}" if req.today_ganzi_kr else "정보 없음"
 
     system_prompt = """당신은 명리심리상담사(Myeonri)의 AI 어시스턴트입니다.
