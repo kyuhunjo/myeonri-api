@@ -1,31 +1,7 @@
 pipeline {
     agent any
 
-    environment {
-        BE_WORK_DIR = "${WORKSPACE}/myeonri-be"
-    }
-
     stages {
-        stage('BE: Git Checkout') {
-            steps {
-                checkout([
-                    branches: [[name: '**']],
-                    $class: 'GitSCM',
-                    doGenerateSubmoduleConfigurations: false,
-                    extensions: [
-                        [$class: 'RelativeTargetDirectory', relativeTargetDir: 'myeonri-be'],
-                        [$class: 'CleanBeforeCheckout'],
-                        [$class: 'CloneOption', noTags: true, honorRefspec: true],
-                    ],
-                    submoduleCfg: [],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/kyuhunjo/myeonri-api.git',
-                        credentialsId: 'github-token'
-                    ]]
-                ])
-            }
-        }
-
         stage('BE: Build & Deploy') {
             steps {
                 script {
@@ -57,7 +33,6 @@ pipeline {
                         """
 
                         sh """
-                            cd ${BE_WORK_DIR}
                             docker build --no-cache -t ${imageName}:latest .
 
                             echo "=== Docker Hub push ==="
@@ -69,8 +44,9 @@ pipeline {
                             set -e
 
                             echo "=== Deployment YAML 적용 ==="
+                            kubectl apply -n ${namespace} -f ${deployFile}
 
-                            echo "=== Env 주입 (Jenkins credential → k8s env) ==="
+                            echo "=== Env 주입 ==="
                             kubectl set env deployment/${deployName} -n ${namespace} \\
                                 GOOGLE_CLIENT_ID=${BE_GOOGLE_CLIENT_ID} \\
                                 GOOGLE_CLIENT_SECRET=${BE_GOOGLE_CLIENT_SECRET} \\
@@ -84,7 +60,6 @@ pipeline {
 
                             echo "=== Rollout 대기 ==="
                             kubectl rollout status deployment/${deployName} -n ${namespace} --timeout=180s
-
                         """
                     }
                 }
