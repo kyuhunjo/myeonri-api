@@ -66,16 +66,10 @@ pipeline {
                         sh """
                             set -e
 
-                            echo "=== 워커 containerd 정리: 이전 ${branch} 태그 이미지 제거 ==="
-                            ssh -o StrictHostKeyChecking=no root@192.168.35.14 "ctr --address /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/library/myeonri-api:${imageTag} 2>/dev/null; ctr --address /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/library/myeonri-api:${branch} 2>/dev/null; echo 'cleanup done'"
-
-                            echo "=== 이미지 전송: myeonri-api:${imageTag} ==="
-                            docker save myeonri-api:${imageTag} | ssh -o StrictHostKeyChecking=no root@192.168.35.14 'ctr --address /run/k3s/containerd/containerd.sock -n k8s.io image import -'
-
-                            echo "=== Deployment YAML 적용 (이미지 태그 치환) ==="
+                            echo "=== Deployment YAML 적용 ==="
                             sed 's|image: docker.io/library/myeonri-api:.*|image: docker.io/library/myeonri-api:${imageTag}|' \\
                                 ${BE_WORK_DIR}/${deployFile} | \\
-                                ssh -o StrictHostKeyChecking=no root@192.168.35.14 'kubectl apply -n ${namespace} -f -'
+                                kubectl apply -n ${namespace} -f -
 
                             echo "=== Env 주입 (Jenkins credential → k8s env) ==="
                             kubectl set env deployment/${deployName} -n ${namespace} \\
@@ -92,9 +86,9 @@ pipeline {
                             echo "=== Rollout 대기 ==="
                             kubectl rollout status deployment/${deployName} -n ${namespace} --timeout=180s
 
-                            echo "=== 이미지 검증: 파드의 실제 이미지 확인 ==="
+                            echo "=== 이미지 검증 ==="
                             ACTUAL=\$(kubectl get pods -n ${namespace} -l app=${deployName} -o jsonpath='{.items[0].status.containerStatuses[0].imageID}' 2>/dev/null)
-                            echo "파드 이미지: \$ACTUAL"
+                            echo "파드 이미지 ID: \$ACTUAL"
                             if echo "\$ACTUAL" | grep -q "${imageTag}"; then
                                 echo "✅ 이미지 일치: ${imageTag}"
                             else
