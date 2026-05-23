@@ -51,8 +51,6 @@ spec:
         - name: logs
           persistentVolumeClaim:
             claimName: myeonri-api-logs-pvc
-      nodeSelector:
-        kubernetes.io/hostname: worker-e4824b34
 ---
 # BE Service (dev)
 apiVersion: v1

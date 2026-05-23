@@ -13,8 +13,6 @@ spec:
       labels:
         app: myeonri-api
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: worker-e4824b34
       containers:
         - name: myeonri-api
           image: docker.io/kyuhunjo/myeonri-api-main:latest
