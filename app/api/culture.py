@@ -47,6 +47,7 @@ async def get_station_spaces(
             return {"items": [], "totalCount": 0}
 
     # 응답 구조 파싱 (items: [{"item": {...}}, ...])
+    body = data.get("body", {})
     items_raw = body.get("items", [])
     items = []
     if isinstance(items_raw, list):
