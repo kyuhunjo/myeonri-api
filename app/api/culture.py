@@ -34,7 +34,7 @@ async def get_station_spaces(
         "serviceKey": settings.SUNRISE_API_KEY,
         "pageNo": str(page_no),
         "numOfRows": str(num_of_rows),
-        "_type": "json",
+        "apiType": "json",
     }
     if station:
         params["STATION_NAME"] = station
