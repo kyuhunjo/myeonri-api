@@ -16,10 +16,9 @@ from app.core.config import settings
 
 API_URL = "https://apis.data.go.kr/B551232/OAMS_CLTPLCE_01/GET_OAMS_CLTPLCE_01"
 
-# 문화 관련 카테고리만 필터링
+# 문화 관련 카테고리만 필터링 (실제 데이터 기준)
 CULTURE_CATEGORIES = {
-    "문화시설", "전시", "공연", "박물관", "미술관", "갤러리",
-    "도서관", "문화원", "기념관", "예술", "공연장", "전시관",
+    "예술", "볼거리/산책", "체험",
 }
 
 
@@ -47,15 +46,19 @@ async def get_station_spaces(
             logger.warning(f"Culture API error: {e}")
             return {"items": [], "totalCount": 0}
 
-    # 응답 구조 파싱
-    body = data.get("body", {})
-    items = body.get("items", [])
-    if isinstance(items, dict):
-        item = items.get("item", [])
-        if isinstance(item, dict):
-            items = [item]
-        else:
-            items = item or []
+    # 응답 구조 파싱 (items: [{"item": {...}}, ...])
+    items_raw = body.get("items", [])
+    items = []
+    if isinstance(items_raw, list):
+        for entry in items_raw:
+            if isinstance(entry, dict) and "item" in entry:
+                items.append(entry["item"])
+    elif isinstance(items_raw, dict):
+        single = items_raw.get("item", {})
+        if isinstance(single, dict):
+            items = [single]
+        elif isinstance(single, list):
+            items = single
     total_count = int(body.get("totalCount", 0))
 
     # 문화 관련 카테고리만 필터링
