@@ -61,7 +61,7 @@ async def load_earthly_branches() -> list[dict]:
             rows = await cur.fetchall()
 
     _earthly_branches = [
-        {"index": r[0] - 1, "hanja": r[1], "hangul": r[4], "element": r[2], "yinyang": r[3], "zodiac": ""}
+        {"index": r[0] - 1, "hanja": r[1], "hangul": r[4], "element": r[2], "yinyang": r[3], "zodiac": ["쥐","소","호랑이","토끼","용","뱀","말","양","원숭이","닭","개","돼지"][r[0] - 1]}
         for r in rows
     ]
     _earthly_by_hanja = {b["hanja"]: b for b in _earthly_branches}
