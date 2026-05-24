@@ -35,9 +35,15 @@ pipeline {
                         sh """
                             docker build --no-cache -t ${imageName}:latest .
 
-                            echo "=== Docker Hub push ==="
+                            echo "=== Docker Hub push (백업) ==="
                             docker tag ${imageName}:latest kyuhunjo/${imageName}:latest
                             docker push kyuhunjo/${imageName}:latest
+
+                            echo "=== containerd 직접 주입 (worker) ==="
+                            docker save ${imageName}:latest | ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.14 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import - 2>&1; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images tag docker.io/library/${imageName}:latest docker.io/kyuhunjo/${imageName}:latest 2>&1 || true"
+
+                            echo "=== containerd 직접 주입 (master) ==="
+                            docker save ${imageName}:latest | ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.13 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import - 2>&1; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images tag docker.io/library/${imageName}:latest docker.io/kyuhunjo/${imageName}:latest 2>&1 || true"
                         """
 
                         sh """
@@ -46,7 +52,10 @@ pipeline {
                             echo "=== Deployment YAML 적용 ==="
                             kubectl apply -n ${namespace} -f ${deployFile}
 
-                            echo "=== Env 주입 ==="
+                            echo "=== 이미지 롤아웃 강제 재시작 ==="
+                            kubectl rollout restart deployment/${deployName} -n ${namespace}
+
+                            echo "=== Env 주입 (Jenkins credential → k8s env) ==="
                             kubectl set env deployment/${deployName} -n ${namespace} \\
                                 GOOGLE_CLIENT_ID=${BE_GOOGLE_CLIENT_ID} \\
                                 GOOGLE_CLIENT_SECRET=${BE_GOOGLE_CLIENT_SECRET} \\
