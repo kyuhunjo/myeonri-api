@@ -65,10 +65,10 @@ pipeline {
                             docker push kyuhunjo/${imageName}:latest
 
                             echo "=== containerd 직접 주입 (worker) ==="
-                            docker save ${imageName}:latest | ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.14 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import - && k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images tag docker.io/library/${imageName}:latest docker.io/kyuhunjo/${imageName}:latest"
+                            docker save ${imageName}:latest | ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.14 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import - 2>&1; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images tag docker.io/library/${imageName}:latest docker.io/kyuhunjo/${imageName}:latest 2>&1 || true"
 
                             echo "=== containerd 직접 주입 (master) ==="
-                            docker save ${imageName}:latest | ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.13 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import - && k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images tag docker.io/library/${imageName}:latest docker.io/kyuhunjo/${imageName}:latest"
+                            docker save ${imageName}:latest | ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.13 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import - 2>&1; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images tag docker.io/library/${imageName}:latest docker.io/kyuhunjo/${imageName}:latest 2>&1 || true"
                         """
 
                         sh """
