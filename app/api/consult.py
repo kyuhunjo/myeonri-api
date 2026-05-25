@@ -1,9 +1,9 @@
 """
-카테고리 상담 분석 API
-기존 분석(/analyze, /analyze/stream) 유지
-— daily, compatibility는 별도 파일로 분리
+공통 상담 분석 모듈
+- ConsultCategory, ConsultRequest, _get_saju_data
+- CATEGORY_PROMPTS, SYSTEM_PROMPT
+- _stream_groq (Groq SSE 스트리밍 공통 함수)
 """
-
 from __future__ import annotations
 import json
 import logging
@@ -11,7 +11,6 @@ from enum import Enum
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
@@ -64,7 +63,6 @@ class ConsultRequest(BaseModel):
     temperature: float | None = None
 
 
-temperature: float | None = None
 async def _get_saju_data(req: ConsultRequest) -> dict:
     """사주 데이터 조회 (saju_profiles 테이블)"""
     saju = req.saju_result
@@ -91,58 +89,11 @@ async def _get_saju_data(req: ConsultRequest) -> dict:
     return saju
 
 
-@router.post("/analyze")
-async def consult_analyze(req: ConsultRequest):
-    """상담 분석 (비스트리밍)"""
-    saju = await _get_saju_data(req)
-    if not settings.GROQ_API_KEY:
-        raise HTTPException(status_code=500, detail="Groq API 키가 설정되지 않았습니다")
-
-    category_instruction = CATEGORY_PROMPTS.get(req.category.value, "")
-    extra_question = f"\n\n사용자의 추가 질문: {req.question}" if req.question else ""
-
-    user_prompt = f"""사주 정보: {json.dumps(saju, ensure_ascii=False, indent=2)}
-
-상담 주제: {category_instruction}{extra_question}
-
-사주 정보를 바탕으로 상담 답변을 해주세요."""
-
-    import httpx
-
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": settings.GROQ_MODEL,
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.7,
-                "max_tokens": 2048,
-            },
-        )
-
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"Groq API 오류: {resp.status_code} {resp.text[:200]}")
-
-    data = resp.json()
-    return {
-        "category": req.category.value,
-        "answer": data["choices"][0]["message"]["content"],
-        "model": settings.GROQ_MODEL,
-    }
-
-
 async def _stream_groq(saju: dict, req: ConsultRequest, override_system: str = None, override_prompt: str = None, override_temperature: float = None) -> AsyncGenerator[str, None]:
     """Groq 스트리밍 응답을 SSE 형식으로 변환 (override 파라미터 지원)"""
     system_prompt = override_system or SYSTEM_PROMPT
     temperature = override_temperature if override_temperature is not None else 0.7
-    
+
     if override_prompt:
         user_prompt = override_prompt
     else:
@@ -198,21 +149,3 @@ async def _stream_groq(saju: dict, req: ConsultRequest, override_system: str = N
         yield f"data: {json.dumps({'error': str(e)[:200]})}\n\n"
     finally:
         yield "data: [DONE]\n\n"
-
-
-@router.post("/analyze/stream")
-async def consult_analyze_stream(req: ConsultRequest):
-    """카테고리 상담 분석 (SSE 스트리밍)"""
-    saju = await _get_saju_data(req)
-    if not settings.GROQ_API_KEY:
-        raise HTTPException(status_code=500, detail="Groq API 키가 설정되지 않았습니다")
-
-    return StreamingResponse(
-        _stream_groq(saju, req, override_temperature=req.temperature),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )

@@ -14,6 +14,14 @@ PUBLIC_PATHS = {
     "/redoc",
     "/auth/google",
     "/auth/google/callback",
+    "/weather/current",
+    "/weather/forecast",
+    "/weather/sunrise",
+    "/weather/air-quality",
+    "/stats/pageview",
+    "/stats/session-end",
+    "/consult/landing-intro/stream",
+    "/culture/station-spaces",
 }
 
 
@@ -36,9 +44,15 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         # API 키 검증
         api_key = request.headers.get("x-api-key", "")
         if not api_key or api_key != settings.API_KEY:
-            return JSONResponse(
+            origin = request.headers.get("origin", "")
+            resp = JSONResponse(
                 status_code=401,
                 content={"detail": "Unauthorized: invalid or missing API key"},
+                headers={
+                    "Access-Control-Allow-Origin": origin or "*",
+                    "Access-Control-Allow-Credentials": "true",
+                } if origin else {},
             )
+            return resp
 
         return await call_next(request)
