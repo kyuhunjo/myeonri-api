@@ -55,5 +55,10 @@ class Settings:
     # Frontend URL
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "https://imjoe24.com")
 
+    # External APIs
+    OPENWEATHER_API_KEY: str = os.getenv("OPENWEATHER_API_KEY", "")
+    KMA_API_KEY: str = os.getenv("KMA_API_KEY", "")  # 공공데이터
+    CHEONGJEONG_API_KEY: str = os.getenv("CHEONGJEONG_API_KEY", "")  # 산림청 청정넷
+
 
 settings = Settings()
