@@ -109,8 +109,8 @@ async def get_station_spaces(
             except (ValueError, KeyError):
                 item["_user_dist"] = 999999
         filtered.sort(key=lambda x: x.get("_user_dist", 999999))
-        # 반경 5km 이내만
-        filtered = [x for x in filtered if x.get("_user_dist", 999999) <= 5000]
+        # 반경 10km 이내만
+        filtered = [x for x in filtered if x.get("_user_dist", 999999) <= 10000]
         for x in filtered:
             x["distance"] = f"{x['_user_dist']:.0f}m"
             del x["_user_dist"]
