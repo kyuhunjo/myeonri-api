@@ -14,8 +14,8 @@ logger = logging.getLogger("myeonri-api")
 # Ollama 서비스 주소 (클러스터 내부)
 OLLAMA_BASE = "http://ollama-gpu-service.default.svc.cluster.local:11434"
 
-# 랜딩용 경량 모델
-OLLAMA_LIGHT_MODEL = "ministral-3:3b-cloud"
+# 랜딩용 경량 모델 (한국어 자연스러움)
+OLLAMA_LIGHT_MODEL = "gpt-oss:20b-cloud"
 
 
 async def ollama_stream(prompt: str, system: str = "", temperature: float = 0.7) -> AsyncGenerator[str, None]:
@@ -30,7 +30,8 @@ async def ollama_stream(prompt: str, system: str = "", temperature: float = 0.7)
         "messages": messages,
         "stream": True,
         "options": {
-            "temperature": temperature,
+            "temperature": 0.3,
+            "num_predict": 80,  # 랜딩은 1~2문장이면 충분
         },
     }
 
