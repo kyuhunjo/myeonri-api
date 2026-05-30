@@ -58,21 +58,25 @@ pipeline {
 
                         sh """
                             cd ${BE_WORK_DIR}
-                            docker build --no-cache -t ${imageName}:latest .
 
-                            echo "=== Docker Hub push (백업) ==="
-                            docker tag ${imageName}:latest kyuhunjo/${imageName}:latest
+                            echo "=== Docker build & push ==="
+                            docker build --no-cache -t kyuhunjo/${imageName}:latest .
                             docker push kyuhunjo/${imageName}:latest
-
-                            echo "=== containerd 직접 주입 (worker) ==="
-                            docker save ${imageName}:latest | ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.14 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import - 2>&1; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images tag docker.io/library/${imageName}:latest docker.io/kyuhunjo/${imageName}:latest 2>&1 || true"
-
-                            echo "=== containerd 직접 주입 (master) ==="
-                            docker save ${imageName}:latest | ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.13 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images import - 2>&1; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images tag docker.io/library/${imageName}:latest docker.io/kyuhunjo/${imageName}:latest 2>&1 || true"
                         """
 
                         sh """
                             set -e
+
+                            echo "=== 노드에서 기존 이미지 정리 ==="
+                            ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.14 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/kyuhunjo/${imageName}:latest 2>/dev/null; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/library/${imageName}:latest 2>/dev/null; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images prune --all 2>/dev/null || true"
+                            ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.13 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/kyuhunjo/${imageName}:latest 2>/dev/null; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/library/${imageName}:latest 2>/dev/null; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images prune --all 2>/dev/null || true"
+
+                            echo "=== Docker Hub pull secret 생성 ==="
+                            kubectl delete secret docker-hub-secret -n ${namespace} --ignore-not-found
+                            kubectl create secret docker-registry docker-hub-secret -n ${namespace} \
+                                --docker-server=docker.io \
+                                --docker-username=kyuhunjo \
+                                --docker-password=${DOCKER_HUB_TOKEN}
 
                             echo "=== Deployment YAML 적용 ==="
                             kubectl apply -n ${namespace} -f ${BE_WORK_DIR}/${deployFile}
@@ -81,15 +85,15 @@ pipeline {
                             kubectl rollout restart deployment/${deployName} -n ${namespace}
 
                             echo "=== Env 주입 (Jenkins credential → k8s env) ==="
-                            kubectl set env deployment/${deployName} -n ${namespace} \\
-                                GOOGLE_CLIENT_ID=${BE_GOOGLE_CLIENT_ID} \\
-                                GOOGLE_CLIENT_SECRET=${BE_GOOGLE_CLIENT_SECRET} \\
-                                GOOGLE_REDIRECT_URI=${BE_GOOGLE_REDIRECT_URI} \\
-                                GROQ_API_KEY=${BE_GROQ_API_KEY} \\
-                                GROQ_MODEL=${BE_GROQ_MODEL} \\
-                                API_KEY=${BE_API_KEY} \\
-                                OPENWEATHER_API_KEY=${BE_OPENWEATHER_KEY} \\
-                                SUNRISE_API_KEY=${BE_SUNRISE_KEY} \\
+                            kubectl set env deployment/${deployName} -n ${namespace} \
+                                GOOGLE_CLIENT_ID=${BE_GOOGLE_CLIENT_ID} \
+                                GOOGLE_CLIENT_SECRET=${BE_GOOGLE_CLIENT_SECRET} \
+                                GOOGLE_REDIRECT_URI=${BE_GOOGLE_REDIRECT_URI} \
+                                GROQ_API_KEY=${BE_GROQ_API_KEY} \
+                                GROQ_MODEL=${BE_GROQ_MODEL} \
+                                API_KEY=${BE_API_KEY} \
+                                OPENWEATHER_API_KEY=${BE_OPENWEATHER_KEY} \
+                                SUNRISE_API_KEY=${BE_SUNRISE_KEY} \
                                 MYSQL_PASSWORD=${BE_MYSQL_PASSWORD}
 
                             echo "=== Rollout 대기 ==="

@@ -14,6 +14,8 @@ spec:
       labels:
         app: myeonri-api-dev
     spec:
+      imagePullSecrets:
+        - name: docker-hub-secret
       containers:
         - name: myeonri-api-dev
           image: docker.io/kyuhunjo/myeonri-api-dev:latest
