@@ -14,8 +14,9 @@ logger = logging.getLogger("myeonri-api")
 # Ollama 서비스 주소 (클러스터 내부)
 OLLAMA_BASE = "http://ollama-gpu-service.default.svc.cluster.local:11434"
 
-# 랜딩용 경량 모델 (한국어 자연스러움)
-OLLAMA_LIGHT_MODEL = "gpt-oss:20b-cloud"
+# 랜딩용 경량 모델
+# gpt-oss:20b-cloud는 thinking 모드 때문에 스트리밍 지연이 있어 ministral 사용
+OLLAMA_LIGHT_MODEL = "ministral-3:3b-cloud"
 
 
 async def ollama_stream(prompt: str, system: str = "", temperature: float = 0.7) -> AsyncGenerator[str, None]:
@@ -53,7 +54,9 @@ async def ollama_stream(prompt: str, system: str = "", temperature: float = 0.7)
                         continue
                     try:
                         chunk = json.loads(line)
-                        content = chunk.get("message", {}).get("content", "")
+                        msg = chunk.get("message", {})
+                        # thinking 모델은 thinking이 먼저 오고 나중에 content가 옴. thinking은 스킵
+                        content = msg.get("content", "") or ""
                         if content:
                             yield f"data: {json.dumps({'text': content})}\n\n"
                     except json.JSONDecodeError:
