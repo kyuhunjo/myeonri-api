@@ -68,8 +68,8 @@ pipeline {
                             set -e
 
                             echo "=== 노드에서 기존 이미지 정리 ==="
-                            ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.14 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/kyuhunjo/${imageName}:latest 2>/dev/null; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/library/${imageName}:latest 2>/dev/null; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images prune --all 2>/dev/null || true"
-                            ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.13 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/kyuhunjo/${imageName}:latest 2>/dev/null; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/library/${imageName}:latest 2>/dev/null; k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images prune --all 2>/dev/null || true"
+                            ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.14 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/kyuhunjo/${imageName}:latest 2>/dev/null || true"
+                            ssh -o StrictHostKeyChecking=no -i /home/jenkins/.ssh/id_rsa root@192.168.35.13 "k3s ctr -a /run/k3s/containerd/containerd.sock -n k8s.io images rm docker.io/kyuhunjo/${imageName}:latest 2>/dev/null || true"
 
                             echo "=== Docker Hub pull secret 생성 ==="
                             kubectl delete secret docker-hub-secret -n ${namespace} --ignore-not-found
