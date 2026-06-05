@@ -1,7 +1,31 @@
 pipeline {
     agent any
 
+    environment {
+        BE_WORK_DIR = "${WORKSPACE}/myeonri-be"
+    }
+
     stages {
+        stage('BE: Git Checkout') {
+            steps {
+                checkout([
+                    branches: [[name: '**']],
+                    $class: 'GitSCM',
+                    doGenerateSubmoduleConfigurations: false,
+                    extensions: [
+                        [$class: 'RelativeTargetDirectory', relativeTargetDir: 'myeonri-be'],
+                        [$class: 'CleanBeforeCheckout'],
+                        [$class: 'CloneOption', noTags: true, honorRefspec: true],
+                    ],
+                    submoduleCfg: [],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/kyuhunjo/myeonri-api.git',
+                        credentialsId: 'github-token'
+                    ]]
+                ])
+            }
+        }
+
         stage('BE: Build & Deploy') {
             steps {
                 script {
@@ -55,7 +79,7 @@ pipeline {
                                 --docker-password=${DOCKER_HUB_TOKEN}
 
                             echo "=== Deployment YAML 적용 ==="
-                            kubectl apply -n ${namespace} -f ${deployFile}
+                            kubectl apply -n ${namespace} -f ${BE_WORK_DIR}/${deployFile}
 
                             echo "=== 이미지 롤아웃 강제 재시작 ==="
                             kubectl rollout restart deployment/${deployName} -n ${namespace}
@@ -74,6 +98,8 @@ pipeline {
 
                             echo "=== Rollout 대기 ==="
                             kubectl rollout status deployment/${deployName} -n ${namespace} --timeout=180s
+
+                            echo "=== 완료: ${imageName} ==="
                         """
                     }
                 }
