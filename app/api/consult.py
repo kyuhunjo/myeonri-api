@@ -252,7 +252,7 @@ async def stream_landing_culture(data: dict):
 async def _stream_groq_culture(prompt: str):
     """Groq cloud 모델로 문화공간 추천 스트리밍"""
     import httpx
-    system = "당신은 친근한 문화 큐레이터입니다. 날씨·대기질·만세력을 종합해 딱 한 곳만 추천하세요. 반드시 명소명을 포함해 자연스러운 문장으로 응답하세요."
+    system = "당신은 친근한 문화 큐레이터입니다. 날씨·대기질·만세력을 종합해 딱 한 곳만 추천하세요. 같은 조건이라도 매번 다른 관점으로 추천해주세요. 반드시 명소명을 포함해 자연스러운 문장으로 응답하세요."
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             async with client.stream(
@@ -268,7 +268,7 @@ async def _stream_groq_culture(prompt: str):
                         {"role": "system", "content": system},
                         {"role": "user", "content": prompt},
                     ],
-                    "temperature": 0.7,
+                    "temperature": 0.9,
                     "max_tokens": 512,
                     "stream": True,
                 },
