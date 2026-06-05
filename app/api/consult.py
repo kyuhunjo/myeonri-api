@@ -206,24 +206,47 @@ async def stream_landing_air(data: dict):
 @router.post("/landing-culture/stream")
 async def stream_landing_culture(data: dict):
     spaces = data.get("spaces", [])
-    location = data.get("location", "광주광역시")
     weather = data.get("weather", "맑음")
-    # 명소 리스트 구성 (이름:카테고리)
-    spot_list = "\n".join([f"- {s.get('placeName','')} ({s.get('category','')})" for s in spaces[:5]])
+    temperature = data.get("temperature", "")
+    air = data.get("air", "")
+    ganzi = data.get("ganzi", "")
+
+    # 명소 상세 정보 포함
+    spot_details = []
+    for s in spaces[:8]:
+        name = s.get('placeName', '')
+        cat = s.get('category', '')
+        desc = s.get('desc', '')
+        why = s.get('why', '')
+        spot_details.append(f"- {name} | {cat} | {desc} | 추천이유: {why}")
+    spot_list = "\n".join(spot_details)
+
+    # 부가 정보
+    extra = []
+    if ganzi:
+        extra.append(f"만세력: {ganzi}")
+    if air:
+        extra.append(f"대기질: {air}")
+    if temperature:
+        extra.append(f"기온: {temperature}°C")
+    extra_str = "\n".join(extra) if extra else ""
 
     prompt = f"""
-[장소 리스트]
+[명소 리스트 (이름 | 분류 | 설명 | 추천이유)]
 {spot_list}
 
-[현재 날씨] {weather}
+[오늘의 조건]
+날씨: {weather}
+{extra_str}
 
 규칙:
-- 위 장소 중 오늘 날씨와 가장 잘 어울리는 **한 곳**만 골라서 추천해줘.
-- 왜 오늘 이 장소가 좋은지 2~3문장으로 설명.
-- "오늘 같은 날씨엔" 으로 시작하는 자연스러운 말투.
-- 장소명 반드시 언급.
+- 위 명소 중 오늘 날씨·대기질·만세력 조건을 종합해서 **가장 잘 어울리는 한 곳**을 골라 추천해줘.
+- 장소의 추천이유(why)를 참고하되, 오늘 조건과 연결해서 자연스럽게 설명.
+- 3~4문장으로 구체적인 추천.
+- "오늘 같은 {weather} 날씨엔" 으로 시작.
+- 장소명과 emoji 반드시 포함.
 """
     async def gen():
-        async for chunk in ollama_stream(prompt, system="당신은 친근한 문화 해설가입니다. 오늘 날씨에 딱 맞는 장소 하나만 추천하세요."):
+        async for chunk in ollama_stream(prompt, system="당신은 친근한 문화 큐레이터입니다. 날씨·대기질·만세력을 종합해 딱 한 곳만 추천하세요."):
             yield chunk
     return _sse_response(gen)
