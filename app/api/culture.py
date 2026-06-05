@@ -91,7 +91,7 @@ async def get_station_spaces(
                 "keyword": item.get("kwrd", ""),
             })
 
-    # 좌표가 있으면 거리순 정렬
+    # 좌표가 있으면 거리순 정렬 (반경 제한 없이 거리 계산만)
     if lat is not None and lon is not None and filtered:
         import math
         def haversine(la1, lo1, la2, lo2):
@@ -109,8 +109,6 @@ async def get_station_spaces(
             except (ValueError, KeyError):
                 item["_user_dist"] = 999999
         filtered.sort(key=lambda x: x.get("_user_dist", 999999))
-        # 반경 10km 이내만
-        filtered = [x for x in filtered if x.get("_user_dist", 999999) <= 10000]
         for x in filtered:
             x["distance"] = f"{x['_user_dist']:.0f}m"
             del x["_user_dist"]
