@@ -246,7 +246,52 @@ async def stream_landing_culture(data: dict):
 - "오늘 같은 {weather} 날씨엔" 으로 시작.
 - 장소명과 emoji 반드시 포함.
 """
-    async def gen():
-        async for chunk in ollama_stream(prompt, system="당신은 친근한 문화 큐레이터입니다. 날씨·대기질·만세력을 종합해 딱 한 곳만 추천하세요."):
-            yield chunk
-    return _sse_response(gen)
+    return _sse_response(lambda: _stream_groq_culture(prompt))
+
+
+async def _stream_groq_culture(prompt: str):
+    """Groq cloud 모델로 문화공간 추천 스트리밍"""
+    import httpx
+    system = "당신은 친근한 문화 큐레이터입니다. 날씨·대기질·만세력을 종합해 딱 한 곳만 추천하세요. 반드시 명소명을 포함해 자연스러운 문장으로 응답하세요."
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            async with client.stream(
+                "POST",
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.GROQ_MODEL,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.7,
+                    "max_tokens": 512,
+                    "stream": True,
+                },
+            ) as resp:
+                if resp.status_code != 200:
+                    error_body = await resp.aread()
+                    yield f"data: {json.dumps({'error': error_body.decode()[:200]})}\n\n"
+                    return
+
+                async for line in resp.aiter_lines():
+                    if line.startswith("data: "):
+                        chunk = line[6:].strip()
+                        if chunk == "[DONE]":
+                            yield f"data: {json.dumps({'text': '', 'done': True})}\n\n"
+                            yield "data: [DONE]\n\n"
+                            return
+                        try:
+                            delta = json.loads(chunk)
+                            content = delta.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                            if content:
+                                yield f"data: {json.dumps({'text': content})}\n\n"
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            continue
+
+    except Exception as e:
+        yield f"data: {json.dumps({'error': str(e)[:200]})}\n\n"
