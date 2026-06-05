@@ -232,7 +232,7 @@ async def stream_landing_culture(data: dict):
     extra_str = "\n".join(extra) if extra else ""
 
     prompt = f"""
-[명소 리스트 (이름 | 분류 | 설명 | 추천이유)]
+[명소 리스트 (이름 | 분류 | 설명 | 운영정보)]
 {spot_list}
 
 [오늘의 조건]
@@ -240,11 +240,11 @@ async def stream_landing_culture(data: dict):
 {extra_str}
 
 규칙:
-- 위 명소 중 오늘 날씨·대기질·만세력 조건을 종합해서 **가장 잘 어울리는 한 곳**을 골라 추천해줘.
-- 장소의 추천이유(why)를 참고하되, 오늘 조건과 연결해서 자연스럽게 설명.
+- 위 명소 중 오늘 조건을 종합해 한 곳을 추천해줘. **매번 다른 명소를 우선 고려하세요.**
+- 설명과 운영정보를 참고해 오늘 조건과 연결해서 자연스럽게 설명.
 - 3~4문장으로 구체적인 추천.
 - "오늘 같은 {weather} 날씨엔" 으로 시작.
-- 장소명과 emoji 반드시 포함.
+- 장소명 반드시 포함.
 """
     return _sse_response(lambda: _stream_groq_culture(prompt))
 
