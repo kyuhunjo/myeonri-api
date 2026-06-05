@@ -21,6 +21,7 @@ router = APIRouter(prefix="/consult", tags=["MBTI"])
 class MbtiDimensionRequest(BaseModel):
     google_id: str = ""
     saju_result: dict | None = None
+    temperature: float = 0.1
 
 
 # 지표별 시스템 프롬프트
@@ -80,7 +81,7 @@ def _build_saju_context(saju: dict) -> str:
 상세정보: {json.dumps(ssaju, ensure_ascii=False)}"""
 
 
-async def _stream_dimension(saju: dict, dimension: str) -> str:
+async def _stream_dimension(saju: dict, dimension: str, temperature: float = 0.7) -> str:
     """지표별 스트리밍 처리"""
     ctx = DIMENSION_PROMPTS[dimension]
     saju_context = _build_saju_context(saju)
@@ -92,7 +93,7 @@ async def _stream_dimension(saju: dict, dimension: str) -> str:
         category = "custom"
         question = ""
 
-    return _sg(saju, _Req(), override_system=ctx["system"], override_prompt=user_prompt, override_temperature=0.1)
+    return _sg(saju, _Req(), override_system=ctx["system"], override_prompt=user_prompt, override_temperature=temperature)
 
 
 # 각 지표별 엔드포인트
@@ -107,7 +108,7 @@ async def mbti_ei(req: MbtiDimensionRequest):
     if not saju:
         raise HTTPException(status_code=400, detail="사주 데이터가 필요합니다")
     return StreamingResponse(
-        await _stream_dimension(saju, "ei"),
+        await _stream_dimension(saju, "ei", temperature=req.temperature),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
@@ -124,7 +125,7 @@ async def mbti_sn(req: MbtiDimensionRequest):
     if not saju:
         raise HTTPException(status_code=400, detail="사주 데이터가 필요합니다")
     return StreamingResponse(
-        await _stream_dimension(saju, "sn"),
+        await _stream_dimension(saju, "sn", temperature=req.temperature),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
@@ -141,7 +142,7 @@ async def mbti_tf(req: MbtiDimensionRequest):
     if not saju:
         raise HTTPException(status_code=400, detail="사주 데이터가 필요합니다")
     return StreamingResponse(
-        await _stream_dimension(saju, "tf"),
+        await _stream_dimension(saju, "tf", temperature=req.temperature),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
@@ -158,7 +159,7 @@ async def mbti_jp(req: MbtiDimensionRequest):
     if not saju:
         raise HTTPException(status_code=400, detail="사주 데이터가 필요합니다")
     return StreamingResponse(
-        await _stream_dimension(saju, "jp"),
+        await _stream_dimension(saju, "jp", temperature=req.temperature),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
     )
