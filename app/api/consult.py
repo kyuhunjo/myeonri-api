@@ -207,10 +207,23 @@ async def stream_landing_air(data: dict):
 async def stream_landing_culture(data: dict):
     spaces = data.get("spaces", [])
     location = data.get("location", "광주광역시")
-    space_names = ", ".join([s.get("placeName", "") for s in spaces[:5]])
+    weather = data.get("weather", "맑음")
+    # 명소 리스트 구성 (이름:카테고리)
+    spot_list = "\n".join([f"- {s.get('placeName','')} ({s.get('category','')})" for s in spaces[:5]])
 
-    prompt = f"""{location} 근처 문화공간: {space_names}. 1~2문장으로 이 장소들 짧은 추천사 해줘. 친근하게."""
+    prompt = f"""
+[장소 리스트]
+{spot_list}
+
+[현재 날씨] {weather}
+
+규칙:
+- 위 장소 중 오늘 날씨와 가장 잘 어울리는 **한 곳**만 골라서 추천해줘.
+- 왜 오늘 이 장소가 좋은지 2~3문장으로 설명.
+- "오늘 같은 날씨엔" 으로 시작하는 자연스러운 말투.
+- 장소명 반드시 언급.
+"""
     async def gen():
-        async for chunk in ollama_stream(prompt, system="당신은 친근한 문화 해설가입니다."):
+        async for chunk in ollama_stream(prompt, system="당신은 친근한 문화 해설가입니다. 오늘 날씨에 딱 맞는 장소 하나만 추천하세요."):
             yield chunk
     return _sse_response(gen)
