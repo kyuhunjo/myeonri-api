@@ -152,229 +152,65 @@ async def _stream_groq(saju: dict, req: ConsultRequest, override_system: str = N
         yield "data: [DONE]\n\n"
 
 
-# ── 랜딩페이지 영역별 AI 설명 (스트리밍) ──
+# ── 랜딩페이지 영역별 AI 설명 (Ollama Cloud 경량모델 스트리밍) ──
+
+from app.utils.ollama import ollama_stream
+from fastapi.responses import StreamingResponse
+
+
+def _sse_response(generator):
+    return StreamingResponse(generator(), media_type="text/event-stream", headers={
+        "Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no",
+    })
+
 
 @router.post("/landing-weather/stream")
 async def stream_landing_weather(data: dict):
-    """
-    날씨 데이터 → Groq AI 설명 스트리밍
-    """
     temperature = data.get("temperature")
     description = data.get("description")
     humidity = data.get("humidity")
     windSpeed = data.get("windSpeed")
-    windDirection = data.get("windDirection")
-    icon = data.get("icon")
 
-    prompt = f"""오늘의 날씨 정보를 바탕으로 간단한 설명을 해주세요.
-
-[날씨 정보]
-- 온도: {temperature}°C
-- 상태: {description}
-- 습도: {humidity}%
-- 풍속: {windSpeed}m/s
-- 풍향: {windDirection}°
-
-규칙:
-- 2~3 문장으로 간결하게
-- 일상 생활에 도움이 되는 조언 포함
-- 따뜻하고 친근한 어조"""
-
-    async def generate():
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-                json={
-                    "model": settings.GROQ_MODEL,
-                    "messages": [
-                        {"role": "system", "content": "당신은 친근한 날씨 해설가입니다."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "stream": True,
-                },
-            ) as resp:
-                if resp.status_code != 200:
-                    yield f"data: {json.dumps({'error': 'Groq API error'})}\n\n"
-                    return
-                async for line in resp.aiter_lines():
-                    if line.startswith("data: "):
-                        chunk = line[6:].strip()
-                        if chunk == "[DONE]":
-                            continue
-                        try:
-                            d = json.loads(chunk)
-                            content = d["choices"][0].get("delta", {}).get("content", "")
-                            if content:
-                                yield f"data: {json.dumps({'text': content})}\n\n"
-                        except:
-                            continue
-
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    prompt = f"""날씨: 온도 {temperature}°C, {description}, 습도 {humidity}%, 풍속 {windSpeed}m/s.
+1~2문장으로 오늘 날씨 한줄평 해줘. 따뜻하고 친근하게."""
+    async def gen():
+        async for chunk in ollama_stream(prompt, system="당신은 친근한 날씨 해설가입니다."):
+            yield chunk
+    return _sse_response(gen)
 
 
 @router.post("/landing-sunrise/stream")
 async def stream_landing_sunrise(data: dict):
-    """
-    일출일몰 데이터 → Groq AI 설명 스트리밍
-    """
     sunrise = data.get("sunrise")
     sunset = data.get("sunset")
-    moonrise = data.get("moonrise")
 
-    prompt = f"""오늘의 일출·일몰·월출 시간을 바탕으로 간단한 설명을 해주세요.
-
-[시간 정보]
-- 일출: {sunrise}
-- 일몰: {sunset}
-- 월출: {moonrise}
-
-규칙:
-- 2~3 문장으로 간결하게
-- 시간대를 활용한 활동 추천
-- 따뜻하고 친근한 어조"""
-
-    async def generate():
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-                json={
-                    "model": settings.GROQ_MODEL,
-                    "messages": [
-                        {"role": "system", "content": "당신은 친근한 천문 해설가입니다."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "stream": True,
-                },
-            ) as resp:
-                if resp.status_code != 200:
-                    yield f"data: {json.dumps({'error': 'Groq API error'})}\n\n"
-                    return
-                async for line in resp.aiter_lines():
-                    if line.startswith("data: "):
-                        chunk = line[6:].strip()
-                        if chunk == "[DONE]":
-                            continue
-                        try:
-                            d = json.loads(chunk)
-                            content = d["choices"][0].get("delta", {}).get("content", "")
-                            if content:
-                                yield f"data: {json.dumps({'text': content})}\n\n"
-                        except:
-                            continue
-
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    prompt = f"""일출 {sunrise}, 일몰 {sunset}. 1~2문장으로 오늘 해 뜨고 지는 시간 한줄평 해줘. 따뜻하고 친근하게."""
+    async def gen():
+        async for chunk in ollama_stream(prompt, system="당신은 친근한 천문 해설가입니다."):
+            yield chunk
+    return _sse_response(gen)
 
 
 @router.post("/landing-air/stream")
 async def stream_landing_air(data: dict):
-    """
-    대기질 데이터 → Groq AI 설명 스트리밍
-    """
     pm10 = data.get("pm10")
     pm25 = data.get("pm25")
 
-    prompt = f"""오늘의 대기질 정보를 바탕으로 건강 조언을 해주세요.
-
-[대기질 정보]
-- PM10: {pm10} ㎍/m³
-- PM2.5: {pm25} ㎍/m³
-
-규칙:
-- 2~3 문장으로 간결하게
-- 야외 활동, 환기, 마스크 착용 등 실천 조언
-- 따뜻하고 친근한 어조"""
-
-    async def generate():
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-                json={
-                    "model": settings.GROQ_MODEL,
-                    "messages": [
-                        {"role": "system", "content": "당신은 친근한 건강 상담가입니다."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "stream": True,
-                },
-            ) as resp:
-                if resp.status_code != 200:
-                    yield f"data: {json.dumps({'error': 'Groq API error'})}\n\n"
-                    return
-                async for line in resp.aiter_lines():
-                    if line.startswith("data: "):
-                        chunk = line[6:].strip()
-                        if chunk == "[DONE]":
-                            continue
-                        try:
-                            d = json.loads(chunk)
-                            content = d["choices"][0].get("delta", {}).get("content", "")
-                            if content:
-                                yield f"data: {json.dumps({'text': content})}\n\n"
-                        except:
-                            continue
-
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    prompt = f"""미세먼지 PM10 {pm10}, 초미세먼지 PM25 {pm25}. 1~2문장으로 오늘 대기질 한줄평 해줘. 건강 팁 포함해서 따뜻하게."""
+    async def gen():
+        async for chunk in ollama_stream(prompt, system="당신은 친근한 건강 상담가입니다."):
+            yield chunk
+    return _sse_response(gen)
 
 
 @router.post("/landing-culture/stream")
 async def stream_landing_culture(data: dict):
-    """
-    문화공간 데이터 → Groq AI 설명 스트리밍
-    """
     spaces = data.get("spaces", [])
     location = data.get("location", "광주광역시")
-
     space_names = ", ".join([s.get("placeName", "") for s in spaces[:5]])
 
-    prompt = f"""{location} 인근 문화공간 정보를 바탕으로 방문을 추천하는 설명을 해주세요.
-
-[문화공간]
-{space_names}
-
-규칙:
-- 2~3 문장으로 간결하게
-- 문화 생활, 여가 활동 추천
-- 따뜻하고 친근한 어조"""
-
-    async def generate():
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST",
-                "https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-                json={
-                    "model": settings.GROQ_MODEL,
-                    "messages": [
-                        {"role": "system", "content": "당신은 친근한 문화 해설가입니다."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "stream": True,
-                },
-            ) as resp:
-                if resp.status_code != 200:
-                    yield f"data: {json.dumps({'error': 'Groq API error'})}\n\n"
-                    return
-                async for line in resp.aiter_lines():
-                    if line.startswith("data: "):
-                        chunk = line[6:].strip()
-                        if chunk == "[DONE]":
-                            continue
-                        try:
-                            d = json.loads(chunk)
-                            content = d["choices"][0].get("delta", {}).get("content", "")
-                            if content:
-                                yield f"data: {json.dumps({'text': content})}\n\n"
-                        except:
-                            continue
-
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    prompt = f"""{location} 근처 문화공간: {space_names}. 1~2문장으로 이 장소들 짧은 추천사 해줘. 친근하게."""
+    async def gen():
+        async for chunk in ollama_stream(prompt, system="당신은 친근한 문화 해설가입니다."):
+            yield chunk
+    return _sse_response(gen)

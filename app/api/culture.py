@@ -24,49 +24,57 @@ CULTURE_CATEGORIES = {
 
 @router.get("/station-spaces")
 async def get_station_spaces(
-    station: str = Query(default="", description="역명 (예: 상무역, 남광주역)"),
+    lat: float = Query(default=None, description="위도"),
+    lon: float = Query(default=None, description="경도"),
     page_no: int = Query(default=1, ge=1),
-    num_of_rows: int = Query(default=50, ge=1, le=100),
+    num_of_rows: int = Query(default=200, ge=1, le=500),
 ):
-    """광주 도시철도 역 인근 문화공간 조회"""
+    """광주 도시철도 역 인근 문화공간 조회 — 좌표 기준 거리순 정렬"""
     params = {
         "serviceKey": settings.SUNRISE_API_KEY,
         "pageNo": str(page_no),
         "numOfRows": str(num_of_rows),
         "apiType": "json",
     }
-    if station:
-        params["STATION_NAME"] = station
 
+    # 문화 카테고리 필터
+    CULTURE_CATEGORIES = {
+        "예술", "볼거리/산책", "체험", "문화", "공연", "전시",
+        "역사", "관광", "공원", "도서관", "박물관", "미술관", "기념관",
+        "영화관", "음악", "무용", "연극", "갤러리", "전시관",
+    }
+
+    all_items = []
     async with httpx.AsyncClient(timeout=15) as client:
         try:
             resp = await client.get(API_URL, params=params)
             data = resp.json()
+            header = data.get("header", {})
+            if header.get("resultCode", "") not in ("", "00"):
+                logger.warning(f"Culture API resultCode={header.get('resultCode')} msg={header.get('resultMsg')}")
+                return {"items": [], "totalCount": 0}
+            body = data.get("body", {})
+            items_raw = body.get("items", [])
+            if isinstance(items_raw, list):
+                for entry in items_raw:
+                    if isinstance(entry, dict) and "item" in entry:
+                        all_items.append(entry["item"])
+            elif isinstance(items_raw, dict):
+                single = items_raw.get("item", {})
+                if isinstance(single, dict):
+                    all_items = [single]
+                elif isinstance(single, list):
+                    all_items = single
         except Exception as e:
             logger.warning(f"Culture API error: {e}")
             return {"items": [], "totalCount": 0}
 
-    # 응답 구조 파싱 (items: [{"item": {...}}, ...])
-    body = data.get("body", {})
-    items_raw = body.get("items", [])
-    items = []
-    if isinstance(items_raw, list):
-        for entry in items_raw:
-            if isinstance(entry, dict) and "item" in entry:
-                items.append(entry["item"])
-    elif isinstance(items_raw, dict):
-        single = items_raw.get("item", {})
-        if isinstance(single, dict):
-            items = [single]
-        elif isinstance(single, list):
-            items = single
-    total_count = int(body.get("totalCount", 0))
-
-    # 문화 관련 카테고리만 필터링
+    # 카테고리 필터링
     filtered = []
-    for item in items:
+    for item in all_items:
         ctgry = (item.get("ctgry") or "").strip()
-        # 문화 관련 카테고리만 포함
+        if not ctgry:
+            continue
         if any(cat in ctgry for cat in CULTURE_CATEGORIES):
             filtered.append({
                 "stationName": item.get("stationName", ""),
@@ -83,4 +91,28 @@ async def get_station_spaces(
                 "keyword": item.get("kwrd", ""),
             })
 
-    return {"items": filtered, "totalCount": len(filtered), "rawTotal": total_count}
+    # 좌표가 있으면 거리순 정렬
+    if lat is not None and lon is not None and filtered:
+        import math
+        def haversine(la1, lo1, la2, lo2):
+            R = 6371000
+            phi1, phi2 = math.radians(la1), math.radians(la2)
+            dphi = math.radians(la2 - la1)
+            dlam = math.radians(lo2 - lo1)
+            a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlam/2)**2
+            return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        for item in filtered:
+            try:
+                plat = float(item["latitude"])
+                plon = float(item["longitude"])
+                item["_user_dist"] = haversine(lat, lon, plat, plon)
+            except (ValueError, KeyError):
+                item["_user_dist"] = 999999
+        filtered.sort(key=lambda x: x.get("_user_dist", 999999))
+        # 반경 10km 이내만
+        filtered = [x for x in filtered if x.get("_user_dist", 999999) <= 10000]
+        for x in filtered:
+            x["distance"] = f"{x['_user_dist']:.0f}m"
+            del x["_user_dist"]
+
+    return {"items": filtered, "totalCount": len(filtered)}
