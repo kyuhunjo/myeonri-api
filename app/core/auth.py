@@ -21,7 +21,9 @@ PUBLIC_PATHS = {
     "/stats/pageview",
     "/stats/session-end",
     "/consult/landing-intro/stream",
+    "/consult/landing-culture/stream",
     "/culture/station-spaces",
+    "/calendar/month",
 }
 
 
