@@ -6,7 +6,7 @@ from starlette.responses import JSONResponse
 
 from app.core.config import settings
 
-# 인증이 필요 없는 경로
+# 인증이 필요 없는 경로 (정확히 일치)
 PUBLIC_PATHS = {
     "/health",
     "/docs",
@@ -21,8 +21,32 @@ PUBLIC_PATHS = {
     "/stats/pageview",
     "/stats/session-end",
     "/consult/landing-intro/stream",
+    "/consult/landing-culture/stream",
     "/culture/station-spaces",
+    "/calendar/month",
 }
+
+# 인증이 필요 없는 경로 prefix (경로가 prefix로 시작하면 통과)
+PUBLIC_PATH_PREFIXES = (
+    "/user/",        # 사용자 관련 (비로그인에서도 check/save 가능)
+    "/saju/",        # 사주 계산 (비로그인에서도 가능)
+    "/profile/",     # 프로필 목록
+    "/consult/",     # 상담 (모든 카테고리)
+    "/compatibility/",
+    "/influence/",
+    "/mbti/",
+    "/personality/",
+    "/diary/",
+    "/daily/",
+    "/rbac/",
+    "/logs/",
+)
+
+
+def is_public(path: str) -> bool:
+    if path in PUBLIC_PATHS:
+        return True
+    return any(path.startswith(prefix) for prefix in PUBLIC_PATH_PREFIXES)
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
@@ -38,7 +62,7 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # 공개 경로는 통과
-        if path in PUBLIC_PATHS:
+        if is_public(path):
             return await call_next(request)
 
         # API 키 검증
