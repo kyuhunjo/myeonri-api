@@ -35,7 +35,10 @@ def _resolve_origin(request: Request) -> str:
         m = re.match(r"^(https?://[^/]+)", referer)
         if m:
             return m.group(1).lower()
-    return f"https://{settings.FRONTEND_URL}"
+    fallback = settings.FRONTEND_URL
+    if not fallback.startswith("http"):
+        fallback = f"https://{fallback}"
+    return fallback
 
 
 @router.get("/google")
