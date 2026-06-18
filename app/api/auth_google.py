@@ -27,11 +27,22 @@ def _clean_expired_states():
         _state_store.pop(k, None)
 
 
+def _resolve_origin(request: Request) -> str:
+    """요청의 origin을 결정 (PC vs 모바일). Referer 헤더 기반으로 분기."""
+    referer = request.headers.get("referer", "") or request.headers.get("origin", "")
+    if referer:
+        m = re.match(r"^(https?://[^/]+)", referer)
+        if m:
+            return m.group(1).lower()
+    return f"https://{settings.FRONTEND_URL}"
+
+
 @router.get("/google")
-async def google_login():
+async def google_login(request: Request):
     """구글 OAuth 로그인 페이지로 리디렉트"""
     state = secrets.token_urlsafe(32)
-    _state_store[state] = datetime.now(timezone.utc)
+    origin = _resolve_origin(request)
+    _state_store[state] = (datetime.now(timezone.utc), origin)
 
     params = {
         "client_id": settings.GOOGLE_CLIENT_ID,
@@ -44,7 +55,7 @@ async def google_login():
     }
     query = "&".join(f"{k}={v}" for k, v in params.items())
     url = f"https://accounts.google.com/o/oauth2/v2/auth?{query}"
-    logger.info(f"Google OAuth redirect: state={state[:8]}...")
+    logger.info(f"Google OAuth redirect: origin={origin}, state={state[:8]}...")
     return RedirectResponse(url=url, status_code=302)
 
 
@@ -66,29 +77,32 @@ async def google_callback(
         except Exception:
             pass
 
+    # 기본 origin (state가 없을 때 fallback)
+    stored_origin = _resolve_origin(request)
+
     # 에러 처리
     if error:
         logger.warning(f"Google OAuth error: {error}")
         return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/?error={error}",
+            url=f"{stored_origin}/?error={error}",
             status_code=302,
         )
 
     if not code or not state:
         logger.warning("Missing code or state in OAuth callback")
         return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/?error=missing_params",
+            url=f"{stored_origin}/?error=missing_params",
             status_code=302,
         )
 
-    # state 검증
+    # state 검증 (origin 정보 포함)
     if state not in _state_store:
         logger.warning(f"Invalid state: {state[:8]}...")
         return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/?error=invalid_state",
+            url=f"https://{settings.FRONTEND_URL}/?error=invalid_state",
             status_code=302,
         )
-    _state_store.pop(state, None)
+    _, stored_origin = _state_store.pop(state)
 
     try:
         # code → token 교환
@@ -108,7 +122,7 @@ async def google_callback(
             if "error" in token_data:
                 logger.error(f"Token exchange failed: {token_data.get('error')}")
                 return RedirectResponse(
-                    url=f"{settings.FRONTEND_URL}/?error=token_exchange_failed",
+                    url=f"{stored_origin}/?error=token_exchange_failed",
                     status_code=302,
                 )
 
@@ -132,18 +146,19 @@ async def google_callback(
 
         logger.info(f"Google login success: {user_info.get('email')} ({user_info['sub'][:8]}...)")
 
-        redirect_url = f"{settings.FRONTEND_URL}/auth/callback?{redirect_params}"
+        redirect_url = f"{stored_origin}/auth/callback?{redirect_params}"
+        logger.info(f"OAuth callback redirect to: {stored_origin}")
         return RedirectResponse(url=redirect_url, status_code=302)
 
     except httpx.HTTPError as e:
         logger.error(f"HTTP error during OAuth: {e}")
         return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/?error=http_error",
+            url=f"{stored_origin}/?error=http_error",
             status_code=302,
         )
     except Exception as e:
         logger.error(f"Unexpected error during OAuth: {e}")
         return RedirectResponse(
-            url=f"{settings.FRONTEND_URL}/?error=internal_error",
+            url=f"{stored_origin}/?error=internal_error",
             status_code=302,
         )
