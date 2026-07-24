@@ -42,7 +42,10 @@ class Settings:
         "https://idp.imjoe24.com/.well-known/jwks.json",
     )
     AUTH_ISSUER: str = os.getenv("AUTH_ISSUER", "https://idp.imjoe24.com")
-    AUTH_AUDIENCE: str = os.getenv("AUTH_AUDIENCE", "https://imjoe24.com")
+    # audience: 콤마 구분 여러 값 허용 ("imjoe24-services,external-partners")
+    AUTH_AUDIENCE: str | list[str] | None = os.getenv("JWT_AUDIENCE", "imjoe24-services")
+    if AUTH_AUDIENCE and isinstance(AUTH_AUDIENCE, str) and "," in AUTH_AUDIENCE:
+        AUTH_AUDIENCE = [a.strip() for a in AUTH_AUDIENCE.split(",")]
 
     # Logging
     LOG_TAIL_DEFAULT: int = int(os.getenv("LOG_TAIL_DEFAULT", "100"))
