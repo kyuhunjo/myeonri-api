@@ -4,6 +4,9 @@ uvicorn[standard]==0.34.0
 aiomysql==0.2.0
 python-dotenv==1.0.1
 httpx==0.28.1
-openai==1.58.1  # Groq 호환 (openai SDK로 Groq API 호출 가능)
+openai==1.58.1  # Groq 호환 (openai SDK 로 Groq API 호출 가능)
 pydantic==2.10.4
-PyJWT==2.10.1
+
+# imjoe24-auth-middleware (git install)
+# PyJWT 포함, httpx 포함
+git+https://github.com/kyuhunjo/imjoe24-auth-middleware.git@main

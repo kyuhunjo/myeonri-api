@@ -1,60 +1,33 @@
+"""JWT 검증 + JWKS 캐시 (imjoe24-auth-middleware 기반, 2026-07-24)
+
+**마이그레이션:**
+- Before: PyJWT 직접 구현 (150+ 줄)
+- After: imjoe24-auth-middleware (30 줄)
+- 설치: `pip install git+https://github.com/kyuhunjo/imjoe24-auth-middleware.git@main`
+"""
 from __future__ import annotations
 
-from fastapi import Request, HTTPException
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
+import logging
 
-from app.core.config import settings
+from fastapi import Depends
 
-# 인증이 필요 없는 경로
-PUBLIC_PATHS = {
-    "/health",
-    "/docs",
-    "/openapi.json",
-    "/redoc",
-    "/auth/google",
-    "/auth/google/callback",
-    "/weather/current",
-    "/weather/forecast",
-    "/weather/sunrise",
-    "/weather/air-quality",
-    "/stats/pageview",
-    "/stats/session-end",
-    "/consult/landing-intro/stream",
-    "/consult/landing-culture/stream",
-    "/culture/station-spaces",
-    "/calendar/month",
-}
+from imjoe24_auth import JWKSManager, create_get_current_user
 
+log = logging.getLogger("myeonri-api.auth")
 
-class APIKeyMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
+# ── JWKS 관리자 (전역 단 하나) ──
 
-        # CORS preflight는 항상 통과
-        if request.method == "OPTIONS":
-            return await call_next(request)
+jwks_manager = JWKSManager(
+    jwks_url="https://idp.imjoe24.com/.well-known/jwks.json",
+    ttl_sec=600,  # 10 분 캐시
+    audience="imjoe24-services",
+    issuer="https://idp.imjoe24.com",
+)
 
-        # Swagger UI 관련 정적 파일은 통과
-        if path.startswith("/docs") or path.startswith("/openapi.json") or path.startswith("/redoc"):
-            return await call_next(request)
+# ── FastAPI 의존성 주입용 get_current_user ──
 
-        # 공개 경로는 통과
-        if path in PUBLIC_PATHS:
-            return await call_next(request)
+get_current_user = create_get_current_user(jwks_manager)
 
-        # API 키 검증
-        api_key = request.headers.get("x-api-key", "")
-        if not api_key or api_key != settings.API_KEY:
-            origin = request.headers.get("origin", "")
-            resp = JSONResponse(
-                status_code=401,
-                content={"detail": "Unauthorized: invalid or missing API key"},
-                headers={
-                    "Access-Control-Allow-Origin": origin or "*",
-                    "Access-Control-Allow-Credentials": "true",
-                } if origin else {},
-            )
-            return resp
+# ── 하위 호환용 export (기존 import 경로 유지) ──
 
-        return await call_next(request)
+__all__ = ["get_current_user", "jwks_manager"]
