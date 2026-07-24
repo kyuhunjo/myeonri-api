@@ -48,6 +48,11 @@ async def calculate_saju(req: SajuRequest):
         calenda_row,
         hour=req.hour,
         minute=req.minute,
+        gender=req.gender,
+        solar_year=req.year,
+        solar_month=req.month,
+        solar_day=req.day,
+        nickname=getattr(req, "nickname", None),
     )
 
     return SajuResponse(**result)

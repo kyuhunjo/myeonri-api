@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import logging
 import sys
+from urllib.parse import unquote
+
+import re
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from app.api import saju, user, consult, consult_analyze, consult_landing, calendar, logs, rbac, auth_google, daily, compatibility, profile, influence, mbti, personality, diary, stats, weather, culture
 from app.core.config import settings
@@ -47,11 +52,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# API Key Authentication
+# API Key Authentication (하위 호환 + 내부용)
 app.add_middleware(APIKeyMiddleware)
 
 # Routers
-app.include_router(auth_google.router)
+app.include_router(auth_google.router)  # Phase 3에서 폐지 예정
 app.include_router(saju.router)
 app.include_router(user.router)
 app.include_router(consult.router)
@@ -94,7 +99,6 @@ async def log_access(request: Request, call_next):
     """모든 API 요청을 access_logs 테이블에 기록"""
     start = time.time()
 
-    # 응답 처리 전에 요청 정보 읽기 (본문은 스트림이라 미리 읽지 않음)
     path = request.url.path
     method = request.method
 
@@ -107,10 +111,48 @@ async def log_access(request: Request, call_next):
         return response
 
     try:
-        # google_id 추출 (헤더나 쿼리 파라미터에서)
-        google_id = request.headers.get("x-google-id") or request.query_params.get("google_id") or request.query_params.get("admin_id")
+        # 진짜 클라이언트 IP 추출 (X-Forwarded-For 우선, Traefik 거쳐서 직접 못 받음)
+        xff = request.headers.get("x-forwarded-for", "")
+        real_ip = request.headers.get("x-real-ip", "")
+        cf_ip = request.headers.get("cf-connecting-ip", "")  # Cloudflare
+        if cf_ip:
+            ip = cf_ip
+        elif xff:
+            # XFF: "client, proxy1, proxy2" → 첫 번째가 진짜 클라이언트
+            ip = xff.split(",")[0].strip()
+        elif real_ip:
+            ip = real_ip
+        else:
+            ip = request.client.host if request.client else None
 
-        ip = request.client.host if request.client else None
+        # 사용자 식별: x-user-id 헤더 (FE가 Authorization Bearer에서 추출해서 전달)
+        # → portal-idp의 sub (portal UUID)
+        user_id = (
+            request.headers.get("x-user-id")
+            or request.headers.get("x-google-id")  # 하위 호환
+            or request.query_params.get("google_id")
+            or request.query_params.get("admin_id")
+        )
+        if not user_id:
+            # 쿠키에서 세션 키로 user_id 추출
+            cookie_header = request.headers.get("cookie", "")
+            for session_key in ("myeonri_pc_session", "myeonri_mobile_session"):
+                marker = f"{session_key}="
+                if marker in cookie_header:
+                    try:
+                        after = cookie_header.split(marker, 1)[1]
+                        raw = after.split(";", 1)[0].strip()
+                        decoded = unquote(raw)
+                        m = re.search(r'"(google_?id|user_id|sub)"\s*:\s*"([^"]+)"', decoded, re.IGNORECASE)
+                        if m:
+                            user_id = m.group(2)
+                            break
+                        if decoded and decoded != "null":
+                            user_id = decoded.strip('"')
+                            break
+                    except Exception:
+                        pass
+
         user_agent = request.headers.get("user-agent", "")[:500]
         referer = request.headers.get("referer", "")[:500]
         status = response.status_code
@@ -122,7 +164,7 @@ async def log_access(request: Request, call_next):
                     """INSERT INTO access_logs
                        (google_id, ip, method, path, status, user_agent, referer, duration_ms)
                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-                    (google_id, ip, method, path, status, user_agent, referer, duration_ms),
+                    (user_id, ip, method, path, status, user_agent, referer, duration_ms),
                 )
     except Exception as e:
         logger.warning(f"Failed to log access: {e}")
